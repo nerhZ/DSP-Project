@@ -53,11 +53,10 @@ export const actions: Actions = {
 		return redirect(302, '/demo/lucia');
 	},
 	register: async (event) => {
+		console.log('Testing register...');
 		const formData = await event.request.formData();
 		const username = formData.get('username');
 		const password = formData.get('password');
-
-		console.log(username, password);
 
 		if (!validateUsername(username)) {
 			return fail(400, { message: 'Invalid username' });
