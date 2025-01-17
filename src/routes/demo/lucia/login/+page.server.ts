@@ -53,7 +53,6 @@ export const actions: Actions = {
 		return redirect(302, '/demo/lucia');
 	},
 	register: async (event) => {
-		console.log('Testing register...');
 		const formData = await event.request.formData();
 		const username = formData.get('username');
 		const password = formData.get('password');

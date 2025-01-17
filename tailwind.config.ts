@@ -9,5 +9,5 @@ export default {
 		extend: {}
 	},
 
-	plugins: [forms, containerQueries]
+	plugins: [forms, containerQueries, require('daisyui')]
 } satisfies Config;
