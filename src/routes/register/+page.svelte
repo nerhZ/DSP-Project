@@ -9,10 +9,10 @@
 	<div class="card bg-base-300 w-96 shadow-xl">
 		<div class="card-body">
 			<h2 class="card-title">
-				Login
+				Register
 				<!-- <div class="badge badge-secondary">NEW</div> -->
 			</h2>
-			<form method="post" action="?/login" use:enhance>
+			<form method="post" action="?/register" use:enhance>
 				<div class="form-control">
 					<label class="label" for="username">
 						<span class="label-text">Username</span>
@@ -23,12 +23,12 @@
 					</label>
 					<input type="password" name="password" class="input" placeholder="Password" required />
 					<div class="card-actions justify-center">
-						<button type="submit" class="btn btn-primary mt-5">Login</button>
+						<button type="submit" class="btn btn-primary mt-5">Register</button>
 					</div>
 					<p style="color: red">{form?.message ?? ''}</p>
 					<div class="mt-2 text-center">
-						<p>Need to register an account?</p>
-						<a href="/register" class="link">Register here</a>
+						<p>Already have an account?</p>
+						<a href="/" class="link">Login here</a>
 					</div>
 				</div>
 			</form>
