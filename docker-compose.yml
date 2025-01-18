@@ -1,19 +1,19 @@
 services:
-  web:
-    container_name: web
-    build:
-      context: .
-      dockerfile: bun_Dockerfile
-    expose:
-      - '5173'
-    ports:
-      - '5173:5173'
-    depends_on:
-      - db
-    develop:
-      watch:
-        - action: rebuild
-          path: .
+  # web:
+  #   container_name: web
+  #   build:
+  #     context: .
+  #     dockerfile: bun_Dockerfile
+  #   expose:
+  #     - '5173'
+  #   ports:
+  #     - '5173:5173'
+  #   depends_on:
+  #     - db
+  #   develop:
+  #     watch:
+  #       - action: rebuild
+  #         path: .
 
   db:
     container_name: postgres
