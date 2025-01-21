@@ -23,11 +23,11 @@ export const actions: Actions = {
 
 		if (!auth.validateUsername(username)) {
 			return fail(400, {
-				message: 'Invalid username (min 3, max 31 characters, alphanumeric only)'
+				message: 'Invalid username (3-31 characters, alphanumeric)'
 			});
 		}
 		if (!auth.validatePassword(password)) {
-			return fail(400, { message: 'Invalid password (min 6, max 255 characters)' });
+			return fail(400, { message: 'Invalid password (6-255 characters)' });
 		}
 
 		const results = await db.select().from(table.user).where(eq(table.user.username, username));
@@ -51,6 +51,6 @@ export const actions: Actions = {
 		const session = await auth.createSession(sessionToken, existingUser.id);
 		auth.setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
-		return redirect(302, '/home');
+		return { success: true };
 	}
 };

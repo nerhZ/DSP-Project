@@ -29,8 +29,7 @@ export const actions: Actions = {
 
 		const userId = auth.generateUserId();
 		const passwordHash = await hash(password, {
-			// recommended minimum parameters
-			memoryCost: 19456,
+			memoryCost: 40960,
 			timeCost: 2,
 			outputLen: 32,
 			parallelism: 1
@@ -45,6 +44,7 @@ export const actions: Actions = {
 		} catch (e) {
 			return fail(500, { message: 'An error has occurred' });
 		}
-		return redirect(302, '/home');
+
+		return { success: true };
 	}
 };
