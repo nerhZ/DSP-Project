@@ -14,6 +14,16 @@ export const session = pgTable('session', {
 	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
 });
 
-export type Session = typeof session.$inferSelect;
+export const user_file = pgTable('user_file', {
+	id: serial('id').primaryKey(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => user.id),
+	filename: text('filename').notNull(),
+	uploadedAt: timestamp('uploaded_at', { withTimezone: true, mode: 'date' }).notNull(),
+	fileSize: integer('file_size').notNull()
+});
 
+export type Session = typeof session.$inferSelect;
 export type User = typeof user.$inferSelect;
+export type UserFile = typeof user_file.$inferSelect;
