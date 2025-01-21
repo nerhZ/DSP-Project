@@ -1,4 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import * as auth from '$lib/server/auth.js';
 
 const handleAuth: Handle = async ({ event, resolve }) => {
@@ -18,6 +19,10 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	event.locals.user = user;
 	event.locals.session = session;
+
+	if (event.url.pathname.startsWith('/home') && !event.locals.user) {
+		return redirect(302, '/');
+	}
 
 	return resolve(event);
 };
