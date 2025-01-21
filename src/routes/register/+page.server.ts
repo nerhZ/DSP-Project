@@ -29,7 +29,7 @@ export const actions: Actions = {
 			.where(eq(table.user.username, username))
 			.execute();
 
-		console.log(usernameTaken);
+		// console.log(usernameTaken);
 
 		if (usernameTaken.length > 0) return fail(400, { message: 'Username already taken' });
 
