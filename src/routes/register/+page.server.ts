@@ -3,6 +3,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import * as auth from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
+import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
@@ -18,14 +19,19 @@ export const actions: Actions = {
 		const username = formData.get('username');
 		const password = formData.get('password');
 
-		console.log(username, password);
+		if (!auth.validateUsername(username)) return fail(400, { message: 'Invalid username' });
 
-		if (!auth.validateUsername(username)) {
-			return fail(400, { message: 'Invalid username' });
-		}
-		if (!auth.validatePassword(password)) {
-			return fail(400, { message: 'Invalid password' });
-		}
+		if (!auth.validatePassword(password)) return fail(400, { message: 'Invalid password' });
+
+		const usernameTaken = await db
+			.select({ username: table.user.username })
+			.from(table.user)
+			.where(eq(table.user.username, username))
+			.execute();
+
+		console.log(usernameTaken);
+
+		if (usernameTaken.length > 0) return fail(400, { message: 'Username already taken' });
 
 		const userId = auth.generateUserId();
 		const passwordHash = await hash(password, {
