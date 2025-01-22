@@ -3,10 +3,26 @@
 	import { enhance } from '$app/forms';
 	import { ToastGenerator } from '$lib/toast.svelte';
 	import { goto } from '$app/navigation';
+	import uploadImage from '$lib/images/upload-svgrepo-com.svg';
 
-	let toastGen = ToastGenerator();
 	export let data: LayoutServerData;
 	export let children: any;
+
+	let toastGen = ToastGenerator();
+	let uploadModal: HTMLDialogElement;
+	let fileInput: HTMLInputElement;
+	let selectedFile: File | null = null;
+
+	function openModal(modal: HTMLDialogElement) {
+		modal.showModal();
+	}
+
+	function handleFileChange(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (input.files && input.files.length > 0) {
+			selectedFile = input.files[0];
+		}
+	}
 </script>
 
 <div class="navbar">
@@ -28,18 +44,19 @@
 					/>
 				</svg>
 			</div>
-			<ul class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
-				<!-- Currently empty as no pages to navigate to -->
-			</ul>
+			<ul
+				class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
+			></ul>
 		</div>
 		<a class="btn btn-ghost text-xl" href="/home">Home</a>
 	</div>
 	<div class="navbar-center hidden lg:flex">
-		<ul class="menu menu-horizontal px-1">
-			<!-- Currently empty as no pages to navigate to -->
-		</ul>
+		<ul class="menu menu-horizontal px-1"></ul>
 	</div>
 	<div class="navbar-end">
+		<button class="btn btn-sm btn-ghost btn-primary me-1" onclick={() => openModal(uploadModal)}
+			><img src={uploadImage} width="25px" alt="Upload files symbol" /></button
+		>
 		<p class="me-3">{data.user?.username}</p>
 		<form
 			method="POST"
@@ -67,3 +84,38 @@
 <div class="border-base-300 m-auto mb-5 w-10/12 border-b-2"></div>
 
 {@render children()}
+
+<!-- Open the modal using ID.showModal() method -->
+<dialog bind:this={uploadModal} class="modal">
+	<div class="modal-box">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+		</form>
+		<h3 class="text-lg font-bold">Upload a File</h3>
+		<form method="post" action="/home?/upload" enctype="multipart/form-data">
+			<div class="flex flex-col items-center">
+				<input
+					type="file"
+					name="file"
+					class="hidden"
+					bind:this={fileInput}
+					onchange={handleFileChange}
+				/>
+				<button onclick={() => fileInput.click()} type="button">
+					<img src={uploadImage} width="250px" alt="Upload files symbol" />
+				</button>
+				{#if selectedFile}
+					<p class="mt-2 text-center">
+						Current file: <span class="font-bold">{selectedFile.name}</span>
+					</p>
+				{:else}
+					<p class="mt-2 text-center">Click the image above to upload a file!</p>
+				{/if}
+				<button class="btn btn-primary mt-4" type="submit">Confirm Upload</button>
+			</div>
+		</form>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
+	</form>
+</dialog>
