@@ -12,6 +12,7 @@
 	let uploadModal: HTMLDialogElement;
 	let fileInput: HTMLInputElement;
 	let selectedFile: File | null = null;
+	let uploadedImage: string | null = null;
 
 	function openModal(modal: HTMLDialogElement) {
 		modal.showModal();
@@ -21,6 +22,17 @@
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
 			selectedFile = input.files[0];
+			if (selectedFile.type.startsWith('image/')) {
+				const reader = new FileReader();
+				reader.onload = (e) => {
+					uploadedImage = e.target?.result as string;
+				};
+				reader.readAsDataURL(selectedFile);
+			} else {
+				uploadedImage = null;
+			}
+		} else {
+			uploadedImage = null;
 		}
 	}
 </script>
@@ -121,7 +133,11 @@
 					onchange={handleFileChange}
 				/>
 				<button onclick={() => fileInput.click()} type="button">
-					<img src={uploadImage} width="250px" alt="Upload files symbol" />
+					<img
+						src={uploadedImage ? uploadedImage : uploadImage}
+						width="250px"
+						alt="Upload files symbol"
+					/>
 				</button>
 				{#if selectedFile}
 					<p class="mt-2 text-center">
@@ -130,8 +146,13 @@
 				{:else}
 					<p class="mt-2 text-center">Click the image above to upload a file!</p>
 				{/if}
-				<button class="btn btn-primary mt-4" type="submit" disabled={!selectedFile}
-					>Confirm Upload</button
+				<button
+					class="btn btn-primary mt-4"
+					type="submit"
+					disabled={!selectedFile}
+					onsubmit={() => {
+						uploadedImage = null;
+					}}>Confirm Upload</button
 				>
 			</div>
 		</form>
