@@ -20,7 +20,7 @@
 						console.log(result.type);
 						if (result.type == 'success') {
 							toastGen.addToast('Successfully registered account & signed in!', 'alert-success');
-							goto('/home');
+							await goto('/home');
 						}
 						await update();
 					};

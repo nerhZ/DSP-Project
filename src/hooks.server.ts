@@ -20,7 +20,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	event.locals.user = user;
 	event.locals.session = session;
 
-	if (event.url.pathname.startsWith('/home') && !event.locals.user) {
+	if (event.url.pathname.startsWith('/home') && !event.locals.session?.userId) {
 		return redirect(302, '/');
 	}
 

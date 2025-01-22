@@ -4,12 +4,39 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fail } from '@sveltejs/kit';
+import { db } from '$lib/server/db';
+import * as table from '$lib/server/db/schema';
+import * as auth from '$lib/server/auth';
+import { count, eq, and, like } from 'drizzle-orm';
 
 export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
-	if (!event.locals.user) {
-		return redirect(302, '/');
+	const session = event.locals.session;
+
+	if (!session || !session.userId) {
+		return fail(401, { message: 'Not authenticated - please try login again.' });
 	}
-	return { user: event.locals.user };
+
+	const homeDir = os.homedir();
+	const userDir = path.join(homeDir, 'AppStorage', session.userId);
+
+	let files: { name: string; data: string }[] = [];
+	try {
+		const folderExists = fs.existsSync(userDir);
+		if (!folderExists) {
+			return;
+		}
+
+		const dirFiles = await fs.promises.readdir(userDir);
+		// Read each file's content
+		for (const file of dirFiles) {
+			const filePath = path.join(userDir, file);
+			const data = await fs.promises.readFile(filePath, 'base64');
+			files.push({ name: file, data });
+		}
+		return { files };
+	} catch (err) {
+		fail(500, { message: 'Failed to read user directory' });
+	}
 };
 
 export const actions: Actions = {
@@ -26,9 +53,6 @@ export const actions: Actions = {
 		if (!file || !(file instanceof File)) {
 			return fail(400, { message: 'No file uploaded' });
 		}
-
-		// Sanitize file name
-		const sanitizedFileName = path.basename(file.name).replace(/[^a-zA-Z0-9.\-_]/g, '_');
 
 		// Get file type
 		const fileType = file.type;
@@ -75,6 +99,27 @@ export const actions: Actions = {
 			return fail(400, { message: 'Invalid file type' });
 		}
 
+		// Sanitize file name
+		let sanitizedFileName = path.basename(file.name).replace(/[^a-zA-Z0-9.\-_]/g, '_');
+
+		let filenameType = path.extname(sanitizedFileName);
+		let filenameBase = path.basename(sanitizedFileName, filenameType);
+
+		// Check if file name is already in use
+		const existingFile = await db
+			.select({ count: count() })
+			.from(table.user_file)
+			.where(
+				and(
+					eq(table.user_file.userId, currentUser),
+					like(table.user_file.filename, `${filenameBase}%`)
+				)
+			);
+
+		if (existingFile[0].count > 0) {
+			sanitizedFileName = `${filenameBase}-${existingFile[0].count}${filenameType}`;
+		}
+
 		// Validate file size
 		const maxSize = 100 * 1024 * 1024; // 100MB
 		if (file.size > maxSize) {
@@ -98,12 +143,58 @@ export const actions: Actions = {
 
 		// Write the file to disk
 		try {
+			// In case name change resulted in duplicate file name
+			const fileExists = fs.existsSync(filePath);
+			if (fileExists) {
+				return fail(400, { message: 'File already exists, please alter file name' });
+			}
+
 			await fs.promises.writeFile(filePath, buffer);
-			console.log(`File uploaded to ${filePath}`);
+			await db.insert(table.user_file).values({
+				userId: currentUser,
+				filename: sanitizedFileName,
+				uploadedAt: new Date(),
+				fileSize: file.size
+			});
+
 			return { success: true, message: 'File uploaded!' };
 		} catch (err) {
+			// If error occured, db insert definitely failed so ensure file is deleted
+			await fs.promises.unlink(filePath);
 			console.error(err);
 			return fail(500, { message: 'Failed to write file' });
+		}
+	},
+	delete: async (event) => {
+		const currentUser = event.locals.session?.userId;
+
+		if (!currentUser) {
+			return fail(401, { message: 'Not authenticated, please login again' });
+		}
+
+		const formData = await event.request.formData();
+		const fileName = formData.get('file');
+
+		if (!fileName || typeof fileName !== 'string') {
+			return fail(400, { message: 'No file specified for deletion, please try again' });
+		}
+
+		const homeDir = os.homedir();
+		const filePath = path.join(homeDir, 'AppStorage', currentUser, fileName);
+
+		try {
+			await db
+				.delete(table.user_file)
+				.where(
+					and(eq(table.user_file.userId, currentUser), eq(table.user_file.filename, fileName))
+				);
+
+			await fs.promises.unlink(filePath);
+
+			return { success: true, message: 'File deleted!' };
+		} catch (err) {
+			console.error(err);
+			return fail(500, { message: 'Failed to delete file! Please try again or refresh.' });
 		}
 	}
 };

@@ -67,7 +67,8 @@
 						case 'success':
 							console.log('Successfully signed out');
 							toastGen.addToast('Successfully signed out!', 'alert-success');
-							goto('/');
+							console.log('Working?');
+							await goto('/');
 							break;
 						case 'error':
 							toastGen.addToast('Error signing out, please refresh page.', 'alert-error');
@@ -92,7 +93,25 @@
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 		</form>
 		<h3 class="text-lg font-bold">Upload a File</h3>
-		<form method="post" action="/home?/upload" enctype="multipart/form-data">
+		<form
+			method="post"
+			action="/home?/upload"
+			enctype="multipart/form-data"
+			use:enhance={() => {
+				return async ({ update, result }) => {
+					switch (result.type) {
+						case 'success':
+							toastGen.addToast('Successfully uploaded file!', 'alert-success');
+							uploadModal.close();
+							break;
+						case 'error':
+							toastGen.addToast('Error uploading file, please try again.', 'alert-error');
+							break;
+					}
+					await update();
+				};
+			}}
+		>
 			<div class="flex flex-col items-center">
 				<input
 					type="file"
@@ -111,7 +130,9 @@
 				{:else}
 					<p class="mt-2 text-center">Click the image above to upload a file!</p>
 				{/if}
-				<button class="btn btn-primary mt-4" type="submit">Confirm Upload</button>
+				<button class="btn btn-primary mt-4" type="submit" disabled={!selectedFile}
+					>Confirm Upload</button
+				>
 			</div>
 		</form>
 	</div>
