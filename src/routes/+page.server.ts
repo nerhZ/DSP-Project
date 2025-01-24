@@ -19,8 +19,6 @@ export const actions: Actions = {
 		const username = formData.get('username');
 		const password = formData.get('password');
 
-		console.log(username, password);
-
 		if (!auth.validateUsername(username)) {
 			return fail(400, {
 				message: 'Invalid username (3-31 characters, alphanumeric)'
