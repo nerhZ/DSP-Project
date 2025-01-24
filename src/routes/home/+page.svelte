@@ -18,6 +18,7 @@
 	};
 
 	let previewModal: HTMLDialogElement;
+	let deleteModal: HTMLDialogElement;
 	let previewFile: file | null = null;
 	let toastGen = ToastGenerator();
 
@@ -52,6 +53,13 @@
 			previewModal.showModal();
 		}
 	}
+
+	function confirmDelete(event: Event) {
+		console.log('Delete event triggered');
+		if (!confirm('Are you sure you want to delete?')) {
+			return;
+		}
+	}
 </script>
 
 {#if data.files != undefined && data.files.length > 0}
@@ -59,7 +67,7 @@
 		<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 			{#each data.files as file}
 				<div class="card bg-base-300 justify-center shadow-xl">
-					<button type="button" class="flex-col" on:click={() => openPreview(file)}>
+					<button type="button" class="flex-col" onclick={() => openPreview(file)}>
 						{#if isImage(file.name)}
 							<img
 								src={`data:image/*;base64,${file.data}`}
@@ -89,7 +97,10 @@
 							<form
 								method="post"
 								action="?/delete"
-								use:enhance={() => {
+								use:enhance={({ cancel }) => {
+									if (!confirm(`Are you sure you want to delete? ${file.name}`)) {
+										cancel();
+									}
 									return async ({ update, result }) => {
 										switch (result.type) {
 											case 'success':
@@ -128,7 +139,7 @@
 {/if}
 
 <!-- Open the modal using ID.showModal() method -->
-<dialog bind:this={previewModal} class="modal" on:close={() => (previewFile = null)}>
+<dialog bind:this={previewModal} class="modal" onclose={() => (previewFile = null)}>
 	<div class="modal-box">
 		<form method="dialog">
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
@@ -163,7 +174,10 @@
 		<form
 			method="post"
 			action="?/delete"
-			use:enhance={() => {
+			use:enhance={({ cancel }) => {
+				if (!confirm(`Are you sure you want to delete? ${previewFile?.name}`)) {
+					cancel();
+				}
 				return async ({ update, result }) => {
 					switch (result.type) {
 						case 'success':
