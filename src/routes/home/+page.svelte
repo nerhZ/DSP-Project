@@ -53,13 +53,6 @@
 			previewModal.showModal();
 		}
 	}
-
-	function confirmDelete(event: Event) {
-		console.log('Delete event triggered');
-		if (!confirm('Are you sure you want to delete?')) {
-			return;
-		}
-	}
 </script>
 
 {#if data.files != undefined && data.files.length > 0}
