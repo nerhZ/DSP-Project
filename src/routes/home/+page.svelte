@@ -3,6 +3,7 @@
 	import downloadIcon from '$lib/images/download-svgrepo-com.svg';
 	import audioIcon from '$lib/images/audio-library-svgrepo-com.svg';
 	import videoIcon from '$lib/images/video-library-svgrepo-com.svg';
+	import fileIcon from '$lib/images/file-library-svgrepo-com.svg';
 	import Bin from '$lib/images/bin-half-svgrepo-com.svg';
 	import type { PageServerData } from './$types';
 	import { enhance } from '$app/forms';
@@ -10,6 +11,14 @@
 	import { goto } from '$app/navigation';
 
 	export let data: PageServerData;
+
+	type file = {
+		name: string;
+		data: string;
+	};
+
+	let previewModal: HTMLDialogElement;
+	let previewFile: file | null = null;
 	let toastGen = ToastGenerator();
 
 	function isImage(fileName: string): boolean {
@@ -37,10 +46,11 @@
 		return audioExtensions.includes(fileName.slice(fileName.lastIndexOf('.')).toLowerCase());
 	}
 
-	async function openVideoInNewTab(base64Data: string) {
-		const blob = await fetch(`data:video/mp4;base64,${base64Data}`).then((res) => res.blob());
-		const blobUrl = URL.createObjectURL(blob);
-		window.open(blobUrl, '_blank', 'noopener,noreferrer');
+	function openPreview(file: file) {
+		if (isImage(file.name) || isVideo(file.name) || isAudio(file.name)) {
+			previewFile = file;
+			previewModal.showModal();
+		}
 	}
 </script>
 
@@ -48,24 +58,23 @@
 	<div class="container mx-auto w-full md:w-11/12 lg:w-10/12 xl:w-4/5">
 		<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 			{#each data.files as file}
-				<div class="card bg-base-300 shadow-xl">
-					<figure class="flex-col">
+				<div class="card bg-base-300 justify-center shadow-xl">
+					<button type="button" class="flex-col" on:click={() => openPreview(file)}>
 						{#if isImage(file.name)}
-							<img src={`data:image/*;base64,${file.data}`} alt={file.name} class="h-auto w-full" />
+							<img
+								src={`data:image/*;base64,${file.data}`}
+								alt={file.name}
+								class="h-auto w-full cursor-pointer"
+							/>
 						{:else if isVideo(file.name)}
-							<button on:click={() => openVideoInNewTab(file.data)} class="h-auto w-full">
-								<img src={videoIcon} alt="Video Icon" class="h-auto w-full" />
-							</button>
+							<img src={videoIcon} alt="Video Icon" class="h-auto w-full cursor-pointer" />
 						{:else if isAudio(file.name)}
-							<img src={audioIcon} alt="Art depicting a music icon" class="h-auto w-full" />
-							<audio controls class="h-auto w-full">
-								<source src={`data:audio/*;base64,${file.data}`} type="audio/mpeg" />
-								Your browser does not support the audio element.
-							</audio>
+							<img src={audioIcon} alt="Audio Icon" class="h-auto w-full cursor-pointer" />
 						{:else}
-							<p class="text-center">No preview available</p>
+							<img src={fileIcon} alt="File Icon" class="h-auto w-full cursor-pointer" />
+							<p class="cursor-pointer text-center">No preview available</p>
 						{/if}
-					</figure>
+					</button>
 					<div class="card-body justify-center text-center">
 						<h2 class="card-title text-center text-base">{file.name}</h2>
 						<div class="card-actions justify-center">
@@ -85,11 +94,11 @@
 										switch (result.type) {
 											case 'success':
 												toastGen.addToast('Successfully deleted file!', 'alert-success');
+												await goto('/');
 												break;
 											case 'error':
 												toastGen.addToast(
-													// @ts-ignore
-													result?.message ?? 'An error occurred while deleting the file.',
+													result.error?.message ?? 'An error occurred while deleting the file.',
 													'alert-error'
 												);
 												break;
@@ -98,8 +107,8 @@
 									};
 								}}
 							>
-								<button>
-									<img src={Bin} alt="Delete" width="35px" class="mt-2" />
+								<button class="ml-2 text-red-500 hover:text-red-700">
+									<img src={Bin} class="mt-2" alt="Delete" width="35px" />
 									<input type="hidden" name="file" value={file.name} />
 								</button>
 							</form>
@@ -117,3 +126,79 @@
 		</div>
 	</div>
 {/if}
+
+<!-- Open the modal using ID.showModal() method -->
+<dialog bind:this={previewModal} class="modal" on:close={() => (previewFile = null)}>
+	<div class="modal-box">
+		<form method="dialog">
+			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
+			<h3 class="text-lg font-bold">File Preview</h3>
+			<div class="flex flex-col items-center">
+				{#if previewFile}
+					{#if isImage(previewFile.name)}
+						<img
+							src={`data:image/*;base64,${previewFile.data}`}
+							alt={previewFile.name}
+							class="h-auto w-full"
+						/>
+					{:else if isVideo(previewFile.name)}
+						<!-- svelte-ignore -->
+						<video controls class="h-auto w-full">
+							<source src={`data:video/*;base64,${previewFile.data}`} type="video/mp4" />
+							Your browser does not support the video tag.
+							<track kind="captions" src="" srclang="en" default />
+						</video>
+					{:else if isAudio(previewFile.name)}
+						<audio controls class="h-auto w-full">
+							<source src={`data:audio/*;base64,${previewFile.data}`} type="audio/mpeg" />
+							Your browser does not support the audio element.
+						</audio>
+					{:else}
+						<p>No preview available for this file type.</p>
+					{/if}
+				{/if}
+			</div>
+		</form>
+		<p class="text-center font-semibold">{previewFile?.name}</p>
+		<form
+			method="post"
+			action="?/delete"
+			use:enhance={() => {
+				return async ({ update, result }) => {
+					switch (result.type) {
+						case 'success':
+							toastGen.addToast('Successfully deleted file!', 'alert-success');
+							previewModal.close();
+							await goto('/');
+							break;
+						case 'error':
+							toastGen.addToast(
+								result.error?.message ?? 'An error occurred while deleting the file.',
+								'alert-error'
+							);
+							break;
+					}
+					await update();
+				};
+			}}
+		>
+			<div class="flex items-center justify-center text-center">
+				<a
+					href={`data:application/octet-stream;base64,${previewFile?.data}`}
+					download={previewFile?.name}
+					class="mt-2 text-blue-500"
+					aria-label="Download"
+				>
+					<img src={downloadIcon} width="35px" alt="Download Symbol" />
+				</a>
+				<button class="ml-2 text-red-500 hover:text-red-700">
+					<img src={Bin} class="mt-2" alt="Delete" width="35px" />
+					<input type="hidden" name="file" value={previewFile?.name} />
+				</button>
+			</div>
+		</form>
+	</div>
+	<form method="dialog" class="modal-backdrop">
+		<button>close</button>
+	</form>
+</dialog>

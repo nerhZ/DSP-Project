@@ -115,6 +115,8 @@
 						case 'success':
 							toastGen.addToast('Successfully uploaded file!', 'alert-success');
 							uploadModal.close();
+							uploadedImage = null;
+							selectedFile = null;
 							break;
 						case 'error':
 							toastGen.addToast('Error uploading file, please try again.', 'alert-error');

@@ -20,6 +20,8 @@ export const user_file = pgTable('user_file', {
 		.notNull()
 		.references(() => user.id),
 	filename: text('filename').notNull(),
+	extension: text('extension').notNull(),
+	mimetype: text('mimetype').notNull(),
 	uploadedAt: timestamp('uploaded_at', { withTimezone: true, mode: 'date' }).notNull(),
 	fileSize: integer('file_size').notNull()
 });

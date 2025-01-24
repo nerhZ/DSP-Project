@@ -54,8 +54,15 @@ export const actions: Actions = {
 			return fail(400, { message: 'No file uploaded' });
 		}
 
+		// Validate file size
+		const maxSize = 100 * 1024 * 1024; // 100MB
+		if (file.size > maxSize) {
+			return fail(400, { message: 'File size exceeds the limit of 100MB' });
+		}
+
 		// Get file type
-		const fileType = file.type;
+		const mimetype = file.type.split('/')[0];
+		const extension = file.type.split('/')[1];
 
 		// Validate file type
 		const allowedTypes = [
@@ -63,6 +70,8 @@ export const actions: Actions = {
 			'application/x-rar-compressed',
 			'application/x-tar',
 			'application/gzip',
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			'application/msword',
 			'audio/mpeg',
 			'audio/wav',
 			'audio/ogg',
@@ -95,7 +104,7 @@ export const actions: Actions = {
 			'video/x-flv',
 			'video/ogg'
 		];
-		if (!fileType || !allowedTypes.includes(fileType)) {
+		if (!file.type || !allowedTypes.includes(file.type)) {
 			return fail(400, { message: 'Invalid file type' });
 		}
 
@@ -118,12 +127,6 @@ export const actions: Actions = {
 
 		if (existingFile[0].count > 0) {
 			sanitizedFileName = `${filenameBase}-${existingFile[0].count}${filenameType}`;
-		}
-
-		// Validate file size
-		const maxSize = 100 * 1024 * 1024; // 100MB
-		if (file.size > maxSize) {
-			return fail(400, { message: 'File size exceeds the limit of 100MB' });
 		}
 
 		const homeDir = os.homedir();
@@ -153,6 +156,8 @@ export const actions: Actions = {
 			await db.insert(table.user_file).values({
 				userId: currentUser,
 				filename: sanitizedFileName,
+				extension: extension,
+				mimetype: mimetype,
 				uploadedAt: new Date(),
 				fileSize: file.size
 			});
