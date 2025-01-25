@@ -1,20 +1,21 @@
 services:
-  # web:
-  #   container_name: web
-  #   build:
-  #     context: .
-  #     dockerfile: bun_Dockerfile
-  #   expose:
-  #     - '5173'
-  #   ports:
-  #     - '5173:5173'
-  #   depends_on:
-  #     - db
-  #   develop:
-  #     watch:
-  #       - action: rebuild
-  #         path: .
-
+  web:
+    container_name: web
+    build:
+      context: .
+      dockerfile: bun_Dockerfile
+    ports:
+      - '3000:3000'
+    depends_on:
+      - db
+    environment:
+      - HOST=0.0.0.0
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+    volumes:
+      - /mnt/AppStorage:/mnt/AppStorage
   db:
     container_name: postgres
     image: postgres
@@ -44,8 +45,22 @@ services:
     depends_on:
       - db
 
+  nginx:
+    container_name: nginx
+    image: nginx
+    ports:
+      - '443:443'
+      - '80:80'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro # Ensure this is a file mount
+      - /dev/SSL-storage:/etc/nginx/ssl
+    depends_on:
+      - web
+
 volumes:
   postgres_data:
     driver: local
   pgadmin_data:
+    driver: local
+  web_data:
     driver: local

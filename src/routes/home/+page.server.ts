@@ -1,12 +1,10 @@
-import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions, PageServerLoadEvent } from './$types';
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
-import * as auth from '$lib/server/auth';
+// import * as auth from '$lib/server/auth';
 import { count, eq, and, like } from 'drizzle-orm';
 
 export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
@@ -16,8 +14,7 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 		return fail(401, { message: 'Not authenticated - please try login again.' });
 	}
 
-	const homeDir = os.homedir();
-	const userDir = path.join(homeDir, 'AppStorage', session.userId);
+	const userDir = path.join('/mnt', 'AppStorage', session.userId);
 
 	let files: { name: string; data: string }[] = [];
 	try {
@@ -129,8 +126,7 @@ export const actions: Actions = {
 			sanitizedFileName = `${filenameBase}-${existingFile[0].count}${filenameType}`;
 		}
 
-		const homeDir = os.homedir();
-		const uploadDir = path.join(homeDir, 'AppStorage', currentUser);
+		const uploadDir = path.join('/mnt', 'AppStorage', currentUser);
 		const filePath = path.join(uploadDir, sanitizedFileName);
 
 		const arrayBuffer = await file.arrayBuffer();
@@ -184,8 +180,7 @@ export const actions: Actions = {
 			return fail(400, { message: 'No file specified for deletion, please try again' });
 		}
 
-		const homeDir = os.homedir();
-		const filePath = path.join(homeDir, 'AppStorage', currentUser, fileName);
+		const filePath = path.join('/mnt', 'AppStorage', currentUser, fileName);
 
 		try {
 			await db

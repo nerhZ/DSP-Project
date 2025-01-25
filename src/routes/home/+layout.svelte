@@ -77,9 +77,7 @@
 				return async ({ update, result }) => {
 					switch (result.type) {
 						case 'success':
-							console.log('Successfully signed out');
 							toastGen.addToast('Successfully signed out!', 'alert-success');
-							console.log('Working?');
 							await goto('/');
 							break;
 						case 'error':
