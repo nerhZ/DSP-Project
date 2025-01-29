@@ -26,17 +26,19 @@
 	let deleteSubmit: HTMLButtonElement;
 
 	// Convert files to Blob URLs on load
-	let files: File[] = data.files
-		? data.files.map((file) => {
-				const { blob, url } = base64ToBlobAndURL(file.data, file.name);
-				return {
-					name: file.name,
-					dataBase64: file.data,
-					dataBlob: blob,
-					dataURL: url
-				};
-			})
-		: [];
+	let files: File[] = $derived.by(() =>
+		data.files
+			? data.files.map((file) => {
+					const { blob, url } = base64ToBlobAndURL(file.data, file.name);
+					return {
+						name: file.name,
+						dataBase64: file.data,
+						dataBlob: blob,
+						dataURL: url
+					};
+				})
+			: []
+	);
 
 	function isImage(fileName: string): boolean {
 		const imageExtensions = ['.jpg', '.jpeg', '.webp', '.png', '.gif', '.bmp', '.tiff', '.svg'];
@@ -243,7 +245,7 @@
 							);
 							break;
 					}
-					await update();
+					await update({ invalidateAll: true });
 				};
 			}}
 		>

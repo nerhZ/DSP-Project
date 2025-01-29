@@ -123,7 +123,7 @@
 							break;
 					}
 					// Don't need to re-enable the button since the button's state relies on uploadedFile.
-					await update();
+					await update({ invalidateAll: true });
 				};
 			}}
 		>
