@@ -69,6 +69,7 @@ export const actions: Actions = {
 			'application/gzip',
 			'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 			'application/msword',
+			'application/pdf',
 			'audio/mpeg',
 			'audio/wav',
 			'audio/ogg',

@@ -13,6 +13,7 @@
 	let fileInput: HTMLInputElement;
 	let selectedFile: File | null = null;
 	let uploadedImage: string | null = null;
+	let uploadSubmit: HTMLButtonElement;
 
 	function openModal(modal: HTMLDialogElement) {
 		modal.showModal();
@@ -108,6 +109,7 @@
 			action="/home?/upload"
 			enctype="multipart/form-data"
 			use:enhance={() => {
+				uploadSubmit.disabled = true;
 				return async ({ update, result }) => {
 					switch (result.type) {
 						case 'success':
@@ -120,6 +122,7 @@
 							toastGen.addToast('Error uploading file, please try again.', 'alert-error');
 							break;
 					}
+					// Don't need to re-enable the button since the button's state relies on uploadedFile.
 					await update();
 				};
 			}}
@@ -148,6 +151,7 @@
 				{/if}
 				<button
 					class="btn btn-primary mt-4"
+					bind:this={uploadSubmit}
 					type="submit"
 					disabled={!selectedFile}
 					onsubmit={() => {
