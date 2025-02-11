@@ -1,4 +1,5 @@
 <script lang="ts">
+	// TODO: Move util functions to a util file in lib!
 	import emptyBox from '$lib/images/empty-white-box-svgrepo-com.svg'; // Make sure to replace this with the actual path to your image
 	import downloadIcon from '$lib/images/download-svgrepo-com.svg';
 	import audioIcon from '$lib/images/audio-library-svgrepo-com.svg';
@@ -9,6 +10,8 @@
 	import { ToastGenerator } from '$lib/toast.svelte';
 	import { goto } from '$app/navigation';
 	import mime from 'mime';
+	import { base64ToBlobAndURL } from '$lib/utils';
+	import PreviewModal from '$lib/components/PreviewModal.svelte';
 
 	let { data } = $props();
 
@@ -19,9 +22,9 @@
 		dataURL: string;
 	};
 
-	let previewModal: HTMLDialogElement;
 	let deleteModal: HTMLDialogElement;
 	let previewFile: File | null = $state(null);
+	let previewModal: HTMLDialogElement | undefined = $state();
 	let toastGen = ToastGenerator();
 	let deleteSubmit: HTMLButtonElement;
 
@@ -40,62 +43,21 @@
 			: []
 	);
 
-	function isImage(fileName: string): boolean {
-		const imageExtensions = ['.jpg', '.jpeg', '.webp', '.png', '.gif', '.bmp', '.tiff', '.svg'];
-		return imageExtensions.includes(fileName.slice(fileName.lastIndexOf('.')).toLowerCase());
-	}
-
-	function isVideo(fileName: string): boolean {
-		const videoExtensions = [
-			'.webm',
-			'.mp4',
-			'.3gpp',
-			'.mov',
-			'.avi',
-			'.mpeg',
-			'.wmv',
-			'.flv',
-			'.ogg'
-		];
-		return videoExtensions.includes(fileName.slice(fileName.lastIndexOf('.')).toLowerCase());
-	}
-
-	function isPDF(fileName: string): boolean {
-		return mime.getType(fileName) === 'application/pdf';
-	}
-
-	function isAudio(fileName: string): boolean {
-		const audioExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'];
-		return audioExtensions.includes(fileName.slice(fileName.lastIndexOf('.')).toLowerCase());
-	}
-
 	function openPreview(file: File) {
-		if (isImage(file.name) || isVideo(file.name) || isAudio(file.name) || isPDF(file.name)) {
+		let mimedFileType = mime.getType(file.name);
+		if (!mimedFileType) {
+			toastGen.addToast('File type not supported.', 'alert-error');
+			return;
+		}
+		if (
+			mimedFileType.startsWith('image/') ||
+			mimedFileType.startsWith('video/') ||
+			mimedFileType.startsWith('audio/') ||
+			mimedFileType == 'application/pdf'
+		) {
 			previewFile = file;
-			previewModal.showModal();
+			previewModal?.showModal();
 		}
-	}
-
-	function base64ToBlobAndURL(base64: string, fileName: string): { blob: Blob; url: string } {
-		// Remove the data URL prefix if present
-		const base64Data = base64.split(',')[1] || base64;
-
-		// Convert Base64 to binary
-		const byteCharacters = atob(base64Data);
-		const byteNumbers = new Array(byteCharacters.length);
-
-		for (let i = 0; i < byteCharacters.length; i++) {
-			byteNumbers[i] = byteCharacters.charCodeAt(i);
-		}
-
-		const byteArray = new Uint8Array(byteNumbers);
-
-		const mimeType = mime.getType(fileName) || 'application/octet-stream';
-
-		// Create a Blob from the binary data
-		const blob = new Blob([byteArray], { type: mimeType });
-
-		return { blob: blob, url: URL.createObjectURL(blob) };
 	}
 </script>
 
@@ -105,15 +67,15 @@
 			{#each files as file (file.name)}
 				<div class="card bg-base-300 justify-center shadow-xl">
 					<button type="button" class="flex-col" onclick={() => openPreview(file)}>
-						{#if isImage(file.name)}
+						{#if mime.getType(file.name)?.startsWith('image/')}
 							<img
 								src={`data:image/*;base64,${file.dataBase64}`}
 								alt={file.name}
 								class="h-auto w-full cursor-pointer"
 							/>
-						{:else if isVideo(file.name)}
+						{:else if mime.getType(file.name)?.startsWith('video/')}
 							<img src={videoIcon} alt="Video Icon" class="h-auto w-full cursor-pointer" />
-						{:else if isAudio(file.name)}
+						{:else if mime.getType(file.name)?.startsWith('audio/')}
 							<img src={audioIcon} alt="Audio Icon" class="h-auto w-full cursor-pointer" />
 						{:else if mime.getType(file.name) == 'application/pdf'}
 							<img src={fileIcon} alt="File Icon" class="h-auto w-full cursor-pointer" />
@@ -136,7 +98,7 @@
 							</a>
 							<form
 								method="post"
-								action="?/delete"
+								action="/home?/delete"
 								use:enhance={({ cancel }) => {
 									if (!confirm(`Are you sure you want to delete? ${file.name}`)) {
 										cancel();
@@ -145,7 +107,7 @@
 										switch (result.type) {
 											case 'success':
 												toastGen.addToast('Successfully deleted file!', 'alert-success');
-												previewModal.close();
+												previewModal?.close();
 												await goto('/');
 												break;
 											case 'error':
@@ -179,102 +141,4 @@
 	</div>
 {/if}
 
-<!-- Open the modal using ID.showModal() method -->
-<dialog
-	bind:this={previewModal}
-	class="modal min-w-full"
-	onclose={() => (previewFile = null)}
-	class:pdf-modal={previewFile && isPDF(previewFile.name)}
->
-	<div class="modal-box max-h-full w-full">
-		<form method="dialog">
-			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-			<h3 class="text-lg font-bold">File Preview</h3>
-			<div class="flex flex-col items-center">
-				{#if previewFile}
-					{#if isImage(previewFile.name)}
-						<img src={previewFile?.dataURL} alt={previewFile.name} class="h-auto w-full" />
-					{:else if isVideo(previewFile.name)}
-						<!-- svelte-ignore -->
-						<video controls class="h-auto w-full">
-							<source
-								src={previewFile?.dataURL}
-								type={mime.getType(previewFile.name) || 'video/mp4'}
-							/>
-							<track kind="captions" src="" srclang="en" default />
-						</video>
-					{:else if isAudio(previewFile.name)}
-						<audio controls>
-							<source
-								src={previewFile?.dataURL}
-								type={mime.getType(previewFile.name) || 'audio/mpeg'}
-							/>
-						</audio>
-					{:else if isPDF(previewFile.name)}
-						<embed
-							src={previewFile?.dataURL}
-							type="application/pdf"
-							class="w-full"
-							style="height: calc(100vh - 125px)"
-						/>
-					{:else}
-						<p>No preview available for this file type.</p>
-					{/if}
-				{/if}
-			</div>
-		</form>
-		<p class="text-center font-semibold">{previewFile?.name}</p>
-		<form
-			method="post"
-			action="?/delete"
-			use:enhance={({ cancel }) => {
-				if (!confirm(`Are you sure you want to delete? ${previewFile?.name}`)) {
-					cancel();
-				}
-				return async ({ update, result }) => {
-					switch (result.type) {
-						case 'success':
-							toastGen.addToast('Successfully deleted file!', 'alert-success');
-							previewModal.close();
-							await goto('/');
-							break;
-						case 'error':
-							toastGen.addToast(
-								result.error?.message ?? 'An error occurred while deleting the file.',
-								'alert-error'
-							);
-							break;
-					}
-					await update({ invalidateAll: true });
-				};
-			}}
-		>
-			<div class="flex items-center justify-center text-center">
-				<a
-					href={previewFile?.dataURL}
-					download={previewFile?.name}
-					class="mt-2 text-blue-500"
-					aria-label="Download"
-				>
-					<img src={downloadIcon} width="35px" alt="Download Symbol" />
-				</a>
-				<button class="ml-2 text-red-500 hover:text-red-700">
-					<img src={Bin} class="mt-2" alt="Delete" width="35px" />
-					<input type="hidden" name="file" value={previewFile?.name} />
-				</button>
-			</div>
-		</form>
-	</div>
-	<form method="dialog" class="modal-backdrop">
-		<button>close</button>
-	</form>
-</dialog>
-
-<style>
-	.pdf-modal .modal-box {
-		width: 100vw;
-		max-width: 100vw;
-		height: 100vh;
-		max-height: 100vh;
-	}
-</style>
+<PreviewModal {previewFile} bind:previewModalRef={previewModal} />
