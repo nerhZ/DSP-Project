@@ -115,6 +115,8 @@
 
 			if (response.ok) {
 				toastGen.addToast(result.body.message, 'alert-success');
+				showFloatingButtons = false;
+				checkedFiles = [];
 				invalidateAll();
 			} else {
 				toastGen.addToast(result.body.message, 'alert-error');
