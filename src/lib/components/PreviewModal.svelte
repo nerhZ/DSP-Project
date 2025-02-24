@@ -22,7 +22,10 @@
 		<form method="dialog">
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 			<h3 class="text-lg font-bold">File Preview</h3>
-			<div class="flex max-h-[75vh] flex-col items-center overflow-hidden object-cover">
+			<div
+				class="flex flex-col items-center overflow-hidden object-cover"
+				class:height-non-pdf={previewFile && mime.getType(previewFile.name) != 'application/pdf'}
+			>
 				{#if previewFile}
 					{#if mime.getType(previewFile.name)?.startsWith('image/')}
 						<img src={previewFile?.dataURL} alt={previewFile.name} class="max-h-[75vh]" />
@@ -108,5 +111,9 @@
 		max-width: 100vw;
 		height: 100vh;
 		max-height: 100vh;
+	}
+
+	.height-non-pdf {
+		max-height: 75vh;
 	}
 </style>
