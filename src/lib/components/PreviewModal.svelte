@@ -18,14 +18,14 @@
 	onclose={() => (previewFile = null)}
 	class:pdf-modal={previewFile && mime.getType(previewFile.name) == 'application/pdf'}
 >
-	<div class="modal-box max-h-full w-full md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
+	<div class="modal-box max-h-[90vh] w-full overflow-hidden md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
 		<form method="dialog">
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 			<h3 class="text-lg font-bold">File Preview</h3>
-			<div class="flex flex-col items-center">
+			<div class="flex max-h-[75vh] flex-col items-center overflow-hidden object-cover">
 				{#if previewFile}
 					{#if mime.getType(previewFile.name)?.startsWith('image/')}
-						<img src={previewFile?.dataURL} alt={previewFile.name} class="h-auto w-full" />
+						<img src={previewFile?.dataURL} alt={previewFile.name} class="max-h-[75vh]" />
 					{:else if mime.getType(previewFile.name)?.startsWith('video/')}
 						<!-- svelte-ignore -->
 						<video controls class="h-auto w-full">
