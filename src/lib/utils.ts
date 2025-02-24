@@ -21,3 +21,7 @@ export function base64ToBlobAndURL(base64: string, fileName: string): { blob: Bl
 
 	return { blob: blob, url: URL.createObjectURL(blob) };
 }
+
+export function capitalise(str: string): string {
+	return str.charAt(0).toUpperCase() + str.slice(1);
+}

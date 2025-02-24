@@ -8,10 +8,12 @@
 	import Bin from '$lib/images/bin-half-svgrepo-com.svg';
 	import { enhance } from '$app/forms';
 	import { ToastGenerator } from '$lib/toast.svelte';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import mime from 'mime';
 	import { base64ToBlobAndURL } from '$lib/utils';
 	import PreviewModal from '$lib/components/PreviewModal.svelte';
+	import { capitalise } from '$lib/utils';
+	import { fly, scale, slide } from 'svelte/transition';
 
 	let { data } = $props();
 
@@ -22,26 +24,106 @@
 		dataURL: string;
 	};
 
-	let deleteModal: HTMLDialogElement;
 	let previewFile: File | null = $state(null);
 	let previewModal: HTMLDialogElement | undefined = $state();
 	let toastGen = ToastGenerator();
-	let deleteSubmit: HTMLButtonElement;
+	let checkedFiles: string[] = [];
+	let showFloatingButtons = $state(false);
 
-	// Convert files to Blob URLs on load
-	let files: File[] = $derived.by(() =>
-		data.files
-			? data.files.map((file) => {
-					const { blob, url } = base64ToBlobAndURL(file.data, file.name);
-					return {
-						name: file.name,
-						dataBase64: file.data,
-						dataBlob: blob,
-						dataURL: url
-					};
-				})
-			: []
-	);
+	async function submitFileForm(filename: string) {
+		try {
+			const response = await fetch('/api/loadFile', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ file: filename })
+			});
+
+			const result = await response.json();
+
+			if (response.ok) {
+				const data = result.body.data;
+				const { blob, url } = base64ToBlobAndURL(data.fileContent, data.fileName);
+				const file = {
+					name: data.fileName,
+					dataBase64: data.fileContent,
+					dataBlob: blob,
+					dataURL: url
+				};
+				openPreview(file);
+			} else {
+				toastGen.addToast(result.body.message, 'alert-error');
+			}
+		} catch (error) {
+			console.error('Error loading file:', error);
+			toastGen.addToast('Failed to load file. Please try again.', 'alert-error');
+		}
+	}
+
+	async function submitGroupDownload(files: string[]) {
+		try {
+			const response = await fetch('/api/loadFiles', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ files })
+			});
+
+			const result = await response.json();
+
+			if (response.ok) {
+				const data = result.body.data;
+
+				// Function to trigger download
+				const downloadFile = (fileContent: string, fileName: string) => {
+					const { blob, url } = base64ToBlobAndURL(fileContent, fileName);
+					const link = document.createElement('a');
+					link.href = url;
+					link.download = fileName;
+					document.body.appendChild(link);
+					link.click();
+					document.body.removeChild(link);
+					URL.revokeObjectURL(url); // Free up memory
+				};
+
+				downloadFile(data.fileContent, data.fileName);
+			} else {
+				toastGen.addToast(result.body.message, 'alert-error');
+			}
+		} catch (error) {
+			console.error('Error loading file: ', error);
+			toastGen.addToast('Failed to download files. Please try again.', 'alert-error');
+		}
+	}
+
+	async function submitGroupDeletion(files: string[]) {
+		if (!confirm(`Are you sure you want to delete all selected files? (CANNOT BE UNDONE!)`)) {
+			return;
+		}
+		try {
+			const response = await fetch('/api/deleteFiles', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ files })
+			});
+
+			const result = await response.json();
+
+			if (response.ok) {
+				toastGen.addToast(result.body.message, 'alert-success');
+				invalidateAll();
+			} else {
+				toastGen.addToast(result.body.message, 'alert-error');
+			}
+		} catch (error) {
+			console.error('Error deleting files: ', error);
+			toastGen.addToast('Failed to delete files. Please try again.', 'alert-error');
+		}
+	}
 
 	function openPreview(file: File) {
 		let mimedFileType = mime.getType(file.name);
@@ -59,77 +141,65 @@
 			previewModal?.showModal();
 		}
 	}
+
+	function toggleCheckbox(filename: string, event: Event) {
+		const target = event.target as HTMLInputElement;
+		if (target.checked) {
+			checkedFiles.push(filename);
+		} else {
+			checkedFiles = checkedFiles.filter((f) => f !== filename);
+		}
+		showFloatingButtons = checkedFiles.length > 0;
+
+		// Stop preview modal when clicking checkbox
+		event.stopPropagation();
+	}
 </script>
 
-{#if files.length > 0}
-	<div class="container mx-auto w-full md:w-11/12 lg:w-10/12 xl:w-4/5">
-		<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-			{#each files as file (file.name)}
-				<div class="card bg-base-300 justify-center shadow-xl">
-					<button type="button" class="flex-col" onclick={() => openPreview(file)}>
-						{#if mime.getType(file.name)?.startsWith('image/')}
-							<img
-								src={`data:image/*;base64,${file.dataBase64}`}
-								alt={file.name}
-								class="h-auto w-full cursor-pointer"
-							/>
-						{:else if mime.getType(file.name)?.startsWith('video/')}
-							<img src={videoIcon} alt="Video Icon" class="h-auto w-full cursor-pointer" />
-						{:else if mime.getType(file.name)?.startsWith('audio/')}
-							<img src={audioIcon} alt="Audio Icon" class="h-auto w-full cursor-pointer" />
-						{:else if mime.getType(file.name) == 'application/pdf'}
-							<img src={fileIcon} alt="File Icon" class="h-auto w-full cursor-pointer" />
-							<p class="cursor-pointer text-center">PDF preview available</p>
-						{:else}
-							<img src={fileIcon} alt="File Icon" class="h-auto w-full cursor-pointer" />
-							<p class="cursor-pointer text-center">No preview available</p>
-						{/if}
-					</button>
-					<div class="card-body justify-center text-center">
-						<h2 class="card-title text-center text-base">{file.name}</h2>
-						<div class="card-actions justify-center">
-							<a
-								href={file.dataURL}
-								download={file.name}
-								class="mt-2 flex items-center justify-center text-center text-blue-500"
-								aria-label="Download"
+{#if (data.files ?? []).length > 0}
+	<div class="flex justify-center">
+		<div class="w-full max-w-7xl justify-center overflow-x-auto">
+			<table class="table w-full">
+				<thead>
+					<tr>
+						<th></th>
+						<th></th>
+						<th>File Name</th>
+						<th>Type</th>
+						<th>Uploaded Date</th>
+						<th>File Size</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each data.files ?? [] as file, i (file.filename)}
+						<tr class="hover cursor-pointer" onclick={() => submitFileForm(file.filename)}>
+							<th>{i + 1}</th>
+							<th>
+								<label>
+									<input
+										type="checkbox"
+										class="checkbox"
+										checked={false}
+										onclick={(event) => toggleCheckbox(file.filename, event)}
+									/>
+								</label></th
 							>
-								<img src={downloadIcon} width="35px" alt="Download Symbol" />
-							</a>
-							<form
-								method="post"
-								action="/home?/delete"
-								use:enhance={({ cancel }) => {
-									if (!confirm(`Are you sure you want to delete? ${file.name}`)) {
-										cancel();
-									}
-									return async ({ update, result }) => {
-										switch (result.type) {
-											case 'success':
-												toastGen.addToast('Successfully deleted file!', 'alert-success');
-												previewModal?.close();
-												await goto('/');
-												break;
-											case 'error':
-												toastGen.addToast(
-													result.error?.message ?? 'An error occurred while deleting the file.',
-													'alert-error'
-												);
-												break;
-										}
-										await update();
-									};
-								}}
-							>
-								<button class="ml-2 text-red-500 hover:text-red-700">
-									<img src={Bin} class="mt-2" alt="Delete" width="35px" />
-									<input type="hidden" name="file" value={file.name} />
-								</button>
-							</form>
-						</div>
-					</div>
-				</div>
-			{/each}
+							<td>{file.filename}</td>
+							<td>{capitalise(mime.getType(file.filename)?.split('/')[0] ?? 'unknown')}</td>
+							<td>{file.uploadedAt.toLocaleDateString()}</td>
+							<td>
+								{#if file.fileSize >= 1073741824}
+									{(file.fileSize / 1073741824).toFixed(2)} GB
+								{:else if file.fileSize >= 1048576}
+									{(file.fileSize / 1048576).toFixed(2)} MB
+								{:else}
+									{(file.fileSize / 1024).toFixed(2)} KB
+								{/if}
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
 		</div>
 	</div>
 {:else}
@@ -138,6 +208,17 @@
 			<img src={emptyBox} alt="No images" class="mb-5 max-w-xs opacity-25" />
 			<h1 class="text-2xl">No files stored currently...</h1>
 		</div>
+	</div>
+{/if}
+
+{#if showFloatingButtons}
+	<div class="fixed bottom-5 right-5 z-50" in:scale out:scale>
+		<button type="button" aria-label="Delete" onclick={() => submitGroupDownload(checkedFiles)}
+			><img src={downloadIcon} width="100px" alt="Download icon" /></button
+		>
+		<button type="button" aria-label="Delete" onclick={() => submitGroupDeletion(checkedFiles)}
+			><img src={Bin} width="100px" alt="Bin icon" /></button
+		>
 	</div>
 {/if}
 

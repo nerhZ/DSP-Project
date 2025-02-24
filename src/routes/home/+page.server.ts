@@ -14,25 +14,16 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 		return fail(401, { message: 'Not authenticated - please try login again.' });
 	}
 
-	const userDir = path.join('/mnt', 'AppStorage', session.userId);
-
-	let files: { name: string; data: string }[] = [];
+	let files: { name: string; data: string; uploaded: Date }[] = [];
 	try {
-		const folderExists = fs.existsSync(userDir);
-		if (!folderExists) {
-			return;
-		}
+		const files = await db
+			.select()
+			.from(table.user_file)
+			.where(eq(table.user_file.userId, session.userId));
 
-		const dirFiles = await fs.promises.readdir(userDir);
-		// Read each file's content
-		for (const file of dirFiles) {
-			const filePath = path.join(userDir, file);
-			const data = await fs.promises.readFile(filePath, 'base64');
-			files.push({ name: file, data });
-		}
 		return { files };
 	} catch (err) {
-		fail(500, { message: 'Failed to read user directory' });
+		fail(500, { message: 'Failed to read from database!' });
 	}
 };
 

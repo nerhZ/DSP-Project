@@ -18,7 +18,7 @@
 	onclose={() => (previewFile = null)}
 	class:pdf-modal={previewFile && mime.getType(previewFile.name) == 'application/pdf'}
 >
-	<div class="modal-box max-h-full w-full">
+	<div class="modal-box max-h-full w-full md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
 		<form method="dialog">
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 			<h3 class="text-lg font-bold">File Preview</h3>
