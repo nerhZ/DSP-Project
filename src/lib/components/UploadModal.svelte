@@ -6,14 +6,21 @@
 	let toastGen = ToastGenerator();
 	let { uploadModal = $bindable() } = $props();
 	let fileInput: HTMLInputElement;
-	let selectedFile: File | null = $state(null);
+	let selectedFiles: File[] = $state([]);
 	let uploadedImage: string | null = $state(null);
 	let uploadSubmit: HTMLButtonElement;
 
 	function handleFileChange(event: Event) {
 		const input = event.target as HTMLInputElement;
-		if (input.files && input.files.length > 0) {
-			selectedFile = input.files[0];
+
+		if (input.files && input.files.length > 10) {
+			toastGen.addToast('Cannot upload more than 10 files at once.', 'alert-error');
+			fileInput.value = '';
+			return;
+		}
+
+		if (input.files && input.files.length == 1) {
+			let selectedFile = input.files[0];
 			if (selectedFile.type.startsWith('image/')) {
 				const reader = new FileReader();
 				reader.onload = (e) => {
@@ -26,6 +33,7 @@
 		} else {
 			uploadedImage = null;
 		}
+		if (input.files) selectedFiles = Array.from(input.files);
 	}
 </script>
 
@@ -35,7 +43,7 @@
 		<form method="dialog">
 			<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
 		</form>
-		<h3 class="text-lg font-bold">Upload a File</h3>
+		<h3 class="text-lg font-bold">Upload a File (or files)</h3>
 		<form
 			method="post"
 			action="/home?/upload"
@@ -45,10 +53,10 @@
 				return async ({ update, result }) => {
 					switch (result.type) {
 						case 'success':
-							toastGen.addToast('Successfully uploaded file!', 'alert-success');
+							toastGen.addToast('Successfully uploaded file(s)!', 'alert-success');
 							uploadModal.close();
 							uploadedImage = null;
-							selectedFile = null;
+							selectedFiles = [];
 							break;
 						case 'error':
 							toastGen.addToast('Error uploading file, please try again.', 'alert-error');
@@ -66,6 +74,7 @@
 					class="hidden"
 					bind:this={fileInput}
 					onchange={handleFileChange}
+					multiple
 				/>
 				<button onclick={() => fileInput.click()} type="button">
 					<img
@@ -74,9 +83,18 @@
 						alt="Upload files symbol"
 					/>
 				</button>
-				{#if selectedFile}
+				{#if selectedFiles.length === 1}
 					<p class="mt-2 text-center">
-						Current file: <span class="font-bold">{selectedFile.name}</span>
+						Current file: <span class="font-bold">{selectedFiles[0].name}</span>
+					</p>
+				{:else if selectedFiles.length > 1}
+					<p class="mt-2 text-center">
+						Current files:
+						{#each selectedFiles as file, index}
+							<span class="font-bold">
+								{file.name}{index < selectedFiles.length - 1 ? ', ' : ''}
+							</span>
+						{/each}
 					</p>
 				{:else}
 					<p class="mt-2 text-center">Click the image above to upload a file!</p>
@@ -85,11 +103,13 @@
 					class="btn btn-primary mt-4"
 					bind:this={uploadSubmit}
 					type="submit"
-					disabled={!selectedFile}
+					disabled={selectedFiles.length === 0}
 					onsubmit={() => {
 						uploadedImage = null;
-					}}>Confirm Upload</button
+					}}
 				>
+					Confirm Upload
+				</button>
 			</div>
 		</form>
 	</div>
