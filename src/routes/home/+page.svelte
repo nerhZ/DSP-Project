@@ -1,14 +1,10 @@
 <script lang="ts">
-	// TODO: Move util functions to a util file in lib!
-	import emptyBox from '$lib/images/empty-white-box-svgrepo-com.svg'; // Make sure to replace this with the actual path to your image
+	import emptyBox from '$lib/images/empty-white-box-svgrepo-com.svg';
 	import downloadIcon from '$lib/images/download-svgrepo-com.svg';
-	import audioIcon from '$lib/images/audio-library-svgrepo-com.svg';
-	import videoIcon from '$lib/images/video-library-svgrepo-com.svg';
-	import fileIcon from '$lib/images/file-library-svgrepo-com.svg';
 	import Bin from '$lib/images/bin-half-svgrepo-com.svg';
 	import { enhance } from '$app/forms';
 	import { ToastGenerator } from '$lib/toast.svelte';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import mime from 'mime';
 	import { base64ToBlobAndURL } from '$lib/utils';
 	import PreviewModal from '$lib/components/PreviewModal.svelte';
@@ -27,8 +23,9 @@
 	let previewFile: File | null = $state(null);
 	let previewModal: HTMLDialogElement | undefined = $state();
 	let toastGen = ToastGenerator();
-	let checkedFiles: string[] = [];
+	let checkedFiles: string[] = $state([]);
 	let showFloatingButtons = $state(false);
+	let lastCheckedIndex: number | null = $state(null);
 
 	async function submitFileForm(filename: string) {
 		try {
@@ -76,7 +73,6 @@
 			if (response.ok) {
 				const data = result.body.data;
 
-				// Function to trigger download
 				const downloadFile = (fileContent: string, fileName: string) => {
 					const { blob, url } = base64ToBlobAndURL(fileContent, fileName);
 					const link = document.createElement('a');
@@ -144,14 +140,35 @@
 		}
 	}
 
-	function toggleCheckbox(filename: string, event: Event) {
-		const target = event.target as HTMLInputElement;
-		if (target.checked) {
-			checkedFiles.push(filename);
+	function toggleCheckbox(filename: string, index: number, event: Event) {
+		const shiftKey = (event as MouseEvent).shiftKey;
+		const ctrlKey = (event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey;
+
+		if (shiftKey && lastCheckedIndex !== null) {
+			const startIndex = Math.min(index, lastCheckedIndex);
+			const endIndex = Math.max(index, lastCheckedIndex);
+
+			// reset the state before shift clicking
+			checkedFiles = [];
+			for (let i = startIndex; i <= endIndex; i++) {
+				if (!data.files) return;
+				const file = data.files[i];
+				if (file) {
+					checkedFiles.push(file.filename);
+				}
+			}
+		} else if (ctrlKey) {
+			if (checkedFiles.includes(filename)) {
+				checkedFiles = checkedFiles.filter((f) => f !== filename);
+			} else {
+				checkedFiles.push(filename);
+			}
 		} else {
-			checkedFiles = checkedFiles.filter((f) => f !== filename);
+			checkedFiles = [filename];
 		}
+
 		showFloatingButtons = checkedFiles.length > 0;
+		lastCheckedIndex = index;
 
 		// Stop preview modal when clicking checkbox
 		event.stopPropagation();
@@ -181,8 +198,8 @@
 									<input
 										type="checkbox"
 										class="checkbox"
-										checked={false}
-										onclick={(event) => toggleCheckbox(file.filename, event)}
+										checked={checkedFiles.includes(file.filename)}
+										onclick={(event) => toggleCheckbox(file.filename, i, event)}
 									/>
 								</label></th
 							>
