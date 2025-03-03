@@ -1,13 +1,12 @@
 import containerQueries from '@tailwindcss/container-queries';
 import forms from '@tailwindcss/forms';
-import type { Config } from 'tailwindcss';
+// import type { Config } from 'tailwindcss';
+import daisyui from 'daisyui';
 
 export default {
 	content: ['./src/**/*.{html,js,svelte,ts}'],
-
-	theme: {
-		extend: {}
+	daisyui: {
+		themes: ['dark', 'light', 'cupcake']
 	},
-
-	plugins: [forms, containerQueries, require('daisyui')]
-} satisfies Config;
+	plugins: [forms, containerQueries, daisyui]
+};
