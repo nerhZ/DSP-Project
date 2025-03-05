@@ -148,8 +148,6 @@
 			const startIndex = Math.min(index, lastCheckedIndex);
 			const endIndex = Math.max(index, lastCheckedIndex);
 
-			// reset the state before shift clicking
-			checkedFiles = [];
 			for (let i = startIndex; i <= endIndex; i++) {
 				if (!data.files) return;
 				const file = data.files[i];
@@ -191,7 +189,10 @@
 				</thead>
 				<tbody>
 					{#each data.files ?? [] as file, i (file.filename)}
-						<tr class="hover cursor-pointer" onclick={() => submitFileForm(file.filename)}>
+						<tr
+							class="hover:bg-base-200 cursor-pointer select-none"
+							onclick={() => submitFileForm(file.filename)}
+						>
 							<th>{i + 1}</th>
 							<th>
 								<label>
