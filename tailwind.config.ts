@@ -5,8 +5,8 @@ import daisyui from 'daisyui';
 
 export default {
 	content: ['./src/**/*.{html,js,svelte,ts}'],
-	daisyui: {
-		themes: ['dark', 'light', 'cupcake']
-	},
+	// daisyui: {
+	// 	themes: ['dark', 'light', 'cupcake']
+	// },
 	plugins: [forms, containerQueries, daisyui]
 };
