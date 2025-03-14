@@ -175,7 +175,7 @@
 
 {#if (data.files ?? []).length > 0}
 	<div class="flex justify-center">
-		<div class="w-full max-w-7xl justify-center overflow-x-auto">
+		<div class="w-full justify-center overflow-x-auto">
 			<table class="table w-full">
 				<thead>
 					<tr>

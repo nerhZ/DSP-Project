@@ -6,7 +6,7 @@
 	import UploadModal from '$lib/components/UploadModal.svelte';
 
 	let toastGen = ToastGenerator();
-	let { data } = $props();
+	let { data, toggleSidebar } = $props();
 
 	let uploadModalRef: HTMLDialogElement | undefined = $state();
 </script>
@@ -40,6 +40,7 @@
 		<ul class="menu menu-horizontal px-1"></ul>
 	</div>
 	<div class="navbar-end">
+		<button onclick={toggleSidebar} class="btn btn-sm btn-primary lg:hidden"> Open drawer </button>
 		<button
 			class="btn btn-sm btn-ghost btn-primary me-1"
 			onclick={() => uploadModalRef?.showModal()}
