@@ -40,7 +40,9 @@
 		<ul class="menu menu-horizontal px-1"></ul>
 	</div>
 	<div class="navbar-end">
-		<button onclick={toggleSidebar} class="btn btn-sm btn-primary lg:hidden"> Open drawer </button>
+		<button onclick={toggleSidebar} class="btn btn-sm btn-primary lg:hidden">
+			Open Filter/Search
+		</button>
 		<button
 			class="btn btn-sm btn-ghost btn-primary me-1"
 			onclick={() => uploadModalRef?.showModal()}

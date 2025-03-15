@@ -174,7 +174,7 @@
 </script>
 
 {#if (data.files ?? []).length > 0}
-	<div class="flex justify-center">
+	<div class="flex w-full justify-center">
 		<div class="w-full justify-center overflow-x-auto">
 			<table class="table w-full">
 				<thead>
