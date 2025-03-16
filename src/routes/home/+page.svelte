@@ -2,7 +2,6 @@
 	import emptyBox from '$lib/images/empty-white-box-svgrepo-com.svg';
 	import downloadIcon from '$lib/images/download-svgrepo-com.svg';
 	import Bin from '$lib/images/bin-half-svgrepo-com.svg';
-	import { enhance } from '$app/forms';
 	import { ToastGenerator } from '$lib/toast.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import mime from 'mime';
@@ -26,10 +25,12 @@
 	let checkedFiles: string[] = $state([]);
 	let showFloatingButtons = $state(false);
 	let lastCheckedIndex: number | null = $state(null);
+	let currentPage: number = $state(1);
+	let files = $state(data.files);
 
 	async function submitFileForm(filename: string) {
 		try {
-			const response = await fetch('/api/loadFile', {
+			const response = await fetch('/api/downloadFile', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -60,7 +61,7 @@
 
 	async function submitGroupDownload(files: string[]) {
 		try {
-			const response = await fetch('/api/loadFiles', {
+			const response = await fetch('/api/downloadFiles', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -171,11 +172,39 @@
 		// Stop preview modal when clicking checkbox
 		event.stopPropagation();
 	}
+
+	async function fetchPage(page: number) {
+		try {
+			if (data.noOfPages && (page < 1 || page > data.noOfPages)) {
+				toastGen.addToast('Invalid page number.', 'alert-error');
+				return;
+			}
+
+			const response = await fetch('/api/loadFiles', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ pageNum: page })
+			});
+			const result = await response.json();
+
+			if (response.ok) {
+				files = result.body.files;
+				currentPage = page;
+			} else {
+				toastGen.addToast(result.body.message, 'alert-error');
+			}
+		} catch (error) {
+			console.error('Error fetching page:', error);
+			toastGen.addToast('Failed to fetch page. Please try again.', 'alert-error');
+		}
+	}
 </script>
 
-{#if (data.files ?? []).length > 0}
+{#if (files ?? []).length > 0 && data.pageSize}
 	<div class="flex w-full justify-center">
-		<div class="w-full justify-center overflow-x-auto">
+		<div class="w-full overflow-x-auto">
 			<table class="table w-full">
 				<thead>
 					<tr>
@@ -188,12 +217,12 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.files ?? [] as file, i (file.filename)}
+					{#each files ?? [] as file, i (file.filename)}
 						<tr
 							class="hover:bg-base-200 cursor-pointer select-none"
 							onclick={() => submitFileForm(file.filename)}
 						>
-							<th>{i + 1}</th>
+							<th>{data.pageSize * (currentPage - 1) + i + 1}</th>
 							<th>
 								<label>
 									<input
@@ -206,7 +235,7 @@
 							>
 							<td>{file.filename}</td>
 							<td>{capitalise(mime.getType(file.filename)?.split('/')[0] ?? 'unknown')}</td>
-							<td>{file.uploadedAt.toLocaleDateString()}</td>
+							<td>{new Date(file.uploadedAt).toLocaleDateString()}</td>
 							<td>
 								{#if file.fileSize >= 1073741824}
 									{(file.fileSize / 1073741824).toFixed(2)} GB
@@ -222,6 +251,40 @@
 			</table>
 		</div>
 	</div>
+	<div class="join justify-center">
+		{#if data && data.noOfPages && data.noOfPages <= 3}
+			{#each Array(data.noOfPages ?? 1) as _, i}
+				<button
+					class="join-item btn btn-lg"
+					onclick={() => {
+						fetchPage(i + 1);
+					}}>{i + 1}</button
+				>
+			{/each}
+		{:else}
+			<button
+				class="join-item btn btn-lg"
+				onclick={() => {
+					fetchPage(currentPage - 1);
+				}}>«</button
+			>
+			<select class="join-item btn btn-lg select-button">
+				{#each Array(data.noOfPages ?? 1) as _, i}
+					<option
+						onclick={() => {
+							fetchPage(i + 1);
+						}}>{i + 1}</option
+					>
+				{/each}
+			</select>
+			<button
+				class="join-item btn btn-lg"
+				onclick={() => {
+					fetchPage(currentPage + 1);
+				}}>»</button
+			>
+		{/if}
+	</div>
 {:else}
 	<div class="flex h-[calc(100vh-100px)] flex-col">
 		<div class="flex flex-grow flex-col items-center justify-center text-center text-gray-500">
@@ -232,7 +295,7 @@
 {/if}
 
 {#if showFloatingButtons}
-	<div class="fixed bottom-5 right-5 z-50" in:scale out:scale>
+	<div class="fixed bottom-5 right-5 z-50 cursor-pointer" in:scale out:scale>
 		<button type="button" aria-label="Delete" onclick={() => submitGroupDownload(checkedFiles)}
 			><img src={downloadIcon} width="100px" alt="Download icon" /></button
 		>
@@ -243,3 +306,13 @@
 {/if}
 
 <PreviewModal {previewFile} bind:previewModalRef={previewModal} />
+
+<style>
+	.select-button {
+		appearance: none;
+	}
+
+	select option:disabled {
+		display: none;
+	}
+</style>

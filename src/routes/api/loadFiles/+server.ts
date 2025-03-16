@@ -1,98 +1,68 @@
+import type { RequestHandler, RequestEvent } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
-import fs from 'node:fs';
-import path from 'node:path';
-import archiver from 'archiver';
+import { db } from '$lib/server/db';
+import * as table from '$lib/server/db/schema';
+import { count, eq, and, like } from 'drizzle-orm';
 
-export const POST: RequestHandler = async (event) => {
-	const currentUser = event.locals.session?.userId;
+export const POST: RequestHandler = async (event: RequestEvent) => {
+	const session = event.locals.session;
 
-	if (!currentUser) {
-		return json(
-			{
-				body: { message: 'Not authenticated, please login again' }
-			},
-			{ status: 401 }
-		);
+	if (!session || !session.userId) {
+		return new Response(JSON.stringify({ message: 'Not authorized to get files', type: 'fail' }), {
+			status: 401
+		});
 	}
 
+	let pageSize = event.cookies.get('pageSize');
+	let pageSizeInt: number;
+
+	if (pageSize) {
+		pageSizeInt = parseInt(pageSize);
+	} else {
+		pageSizeInt = 15;
+	}
+
+	const body = await event.request.json();
+	const pageNum = body.pageNum;
+
+	if (!pageNum || typeof pageNum !== 'number') {
+		return new Response(JSON.stringify({ message: 'Invalid page number', type: 'fail' }), {
+			status: 401
+		});
+	}
+
+	const noOfFiles = await db
+		.select({ files: count() })
+		.from(table.user_file)
+		.where(eq(table.user_file.userId, session.userId));
+	const noOfPages = Math.ceil(noOfFiles[0].files / pageSizeInt);
+
+	let files: { name: string; data: string; uploaded: Date }[] = [];
 	try {
-		const requestBody = await event.request.json();
-		const fileNames = requestBody.files;
+		const files = await db
+			.select()
+			.from(table.user_file)
+			.where(eq(table.user_file.userId, session.userId))
+			.limit(pageSizeInt)
+			.offset((pageNum - 1) * pageSizeInt);
 
-		if (!fileNames || !Array.isArray(fileNames) || fileNames.length === 0) {
-			return json(
-				{
-					body: { message: 'No files specified for loading, please try again' }
-				},
-				{ status: 400 }
-			);
-		}
-
-		const userDir = path.join('/mnt', 'AppStorage', currentUser);
-
-		const folderExists = fs.existsSync(userDir);
-		if (!folderExists) {
-			return json(
-				{
-					body: { message: 'User directory does not exist' }
-				},
-				{ status: 500 }
-			);
-		}
-
-		try {
-			const zip = archiver('zip', {
-				zlib: { level: 3 } // Sets the compression level.
-			});
-
-			const tempFilePath = path.join('/mnt', 'AppStorage', `${currentUser}temp`);
-			const zipFilePath = path.join(tempFilePath, 'download.zip');
-			await fs.promises.mkdir(tempFilePath, { recursive: true });
-			const output = fs.createWriteStream(zipFilePath);
-
-			zip.pipe(output);
-
-			for (const file of fileNames) {
-				const filePath = path.join(userDir, file);
-				zip.append(fs.createReadStream(filePath), { name: file });
-			}
-
-			await zip.finalize();
-
-			// Wait for the file to be fully written to the disk - await zip.finalize can still be unfinished
-			await new Promise((resolve, reject) => {
-				output.on('close', resolve);
-				output.on('error', reject);
-			});
-
-			const zipBase64 = fs.readFileSync(zipFilePath, 'base64');
-			fs.rmdirSync(tempFilePath, { recursive: true }); // Clean up the temp directory
-
-			return json({
-				body: {
-					data: {
-						fileContent: zipBase64,
-						fileName: 'download.zip'
-					}
-				}
-			});
-		} catch (err) {
-			console.error(err);
-			return json(
-				{
-					body: { message: 'Failed to read files! Please try again or refresh.' }
-				},
-				{ status: 500 }
-			);
-		}
-	} catch (err) {
-		console.error('Error parsing JSON:', err);
 		return json(
 			{
-				body: { message: 'Invalid JSON format in request body' }
+				body: {
+					files
+				}
 			},
-			{ status: 400 }
+			{ status: 200 }
+		);
+	} catch (err) {
+		return new Response(
+			JSON.stringify({
+				message: 'Unable to grab files from database! Please try again.',
+				type: 'error'
+			}),
+			{
+				status: 500
+			}
 		);
 	}
 };

@@ -1,8 +1,7 @@
 import * as auth from '$lib/server/auth';
-import type { RequestHandler } from './$types';
+import type { RequestHandler, RequestEvent } from '@sveltejs/kit';
 
-// API routes do not result in regular form action result, so type must be defined in object.
-export const POST: RequestHandler = async (event) => {
+export const POST: RequestHandler = async (event: RequestEvent) => {
 	if (!event.locals.session) {
 		return new Response(JSON.stringify({ message: 'Failed to log out!', type: 'error' }), {
 			status: 401

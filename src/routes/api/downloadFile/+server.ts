@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
+import type { RequestHandler, RequestEvent } from '@sveltejs/kit';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const POST: RequestHandler = async (event) => {
+export const POST: RequestHandler = async (event: RequestEvent) => {
 	const currentUser = event.locals.session?.userId;
 
 	if (!currentUser) {

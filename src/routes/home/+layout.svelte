@@ -12,7 +12,7 @@
 
 <div class="drawer lg:drawer-open">
 	<input id="sidebar" type="checkbox" class="drawer-toggle" bind:this={sidebarElement} />
-	<div class="drawer-content flex max-w-full flex-col items-center justify-center">
+	<div class="drawer-content flex max-w-full flex-col">
 		<!-- Page content here -->
 		{@render children()}
 	</div>

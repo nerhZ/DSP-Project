@@ -4,7 +4,6 @@ import path from 'node:path';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
-// import * as auth from '$lib/server/auth';
 import { count, eq, and, like } from 'drizzle-orm';
 
 export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
@@ -14,14 +13,31 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 		return fail(401, { message: 'Not authenticated - please try login again.' });
 	}
 
+	let pageSize = event.cookies.get('pageSize');
+	let pageSizeInt: number;
+
+	if (pageSize) {
+		pageSizeInt = parseInt(pageSize);
+	} else {
+		pageSizeInt = 15;
+	}
+
+	const noOfFiles = await db
+		.select({ files: count() })
+		.from(table.user_file)
+		.where(eq(table.user_file.userId, session.userId));
+	const noOfFilesDestructured = noOfFiles[0].files;
+	const noOfPages = Math.ceil(noOfFilesDestructured / pageSizeInt);
+
 	let files: { name: string; data: string; uploaded: Date }[] = [];
 	try {
 		const files = await db
 			.select()
 			.from(table.user_file)
-			.where(eq(table.user_file.userId, session.userId));
+			.where(eq(table.user_file.userId, session.userId))
+			.limit(pageSizeInt);
 
-		return { files };
+		return { files, noOfPages, pageSize: pageSizeInt };
 	} catch (err) {
 		fail(500, { message: 'Failed to read from database!' });
 	}
