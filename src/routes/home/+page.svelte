@@ -8,7 +8,7 @@
 	import { base64ToBlobAndURL } from '$lib/utils';
 	import PreviewModal from '$lib/components/PreviewModal.svelte';
 	import { capitalise } from '$lib/utils';
-	import { fly, scale, slide } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 
 	let { data } = $props();
 
@@ -27,6 +27,11 @@
 	let lastCheckedIndex: number | null = $state(null);
 	let currentPage: number = $state(1);
 	let files = $state(data.files);
+
+	$effect(() => {
+		// If props change (invalidated), update the files
+		files = data.files;
+	});
 
 	async function submitFileForm(filename: string) {
 		try {

@@ -8,9 +8,10 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 	const session = event.locals.session;
 
 	if (!session || !session.userId) {
-		return new Response(JSON.stringify({ message: 'Not authorized to get files', type: 'fail' }), {
-			status: 401
-		});
+		return json(
+			{ body: { message: 'Not authorized to get files', type: 'fail' } },
+			{ status: 401 }
+		);
 	}
 
 	let pageSize = event.cookies.get('pageSize');
@@ -26,9 +27,7 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 	const pageNum = body.pageNum;
 
 	if (!pageNum || typeof pageNum !== 'number') {
-		return new Response(JSON.stringify({ message: 'Invalid page number', type: 'fail' }), {
-			status: 401
-		});
+		return json({ body: { message: 'Invalid page number', type: 'fail' } }, { status: 401 });
 	}
 
 	const noOfFiles = await db
@@ -55,11 +54,13 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 			{ status: 200 }
 		);
 	} catch (err) {
-		return new Response(
-			JSON.stringify({
-				message: 'Unable to grab files from database! Please try again.',
-				type: 'error'
-			}),
+		return json(
+			{
+				body: {
+					message: 'Unable to grab files from database! Please try again.',
+					type: 'error'
+				}
+			},
 			{
 				status: 500
 			}
