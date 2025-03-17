@@ -314,12 +314,12 @@
 {/if}
 
 {#if showFloatingButtons}
-	<div class="fixed bottom-5 right-5 z-50 cursor-pointer" in:scale out:scale>
+	<div class="fixed bottom-5 right-5 z-50" in:scale out:scale>
 		<button type="button" aria-label="Delete" onclick={() => submitGroupDownload(checkedFiles)}
-			><img src={downloadIcon} width="100px" alt="Download icon" /></button
+			><img src={downloadIcon} class="cursor-pointer" width="100px" alt="Download icon" /></button
 		>
 		<button type="button" aria-label="Delete" onclick={() => submitGroupDeletion(checkedFiles)}
-			><img src={Bin} width="100px" alt="Bin icon" /></button
+			><img src={Bin} class="cursor-pointer" width="100px" alt="Bin icon" /></button
 		>
 	</div>
 {/if}

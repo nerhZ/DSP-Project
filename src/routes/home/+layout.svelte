@@ -62,9 +62,13 @@
 		>
 			<!-- Sidebar content here -->
 			<li>
-				<fieldset class="fieldset">
+				<fieldset class="fieldset no-hover cursor-default">
 					<legend class="fieldset-legend">Set a Page Length</legend>
-					<select class="select" onchange={setPageLengthCookie} bind:this={pageSizeSelect}>
+					<select
+						class="select cursor-pointer"
+						onchange={setPageLengthCookie}
+						bind:this={pageSizeSelect}
+					>
 						<option>10</option>
 						<option>20</option>
 						<option>50</option>
@@ -79,5 +83,17 @@
 <style>
 	select option:disabled {
 		display: none;
+	}
+
+	.fieldset.no-hover {
+		border: none;
+		padding: 0;
+		margin: 0;
+	}
+	.fieldset.no-hover:hover,
+	.fieldset.no-hover:focus {
+		background-color: transparent;
+		outline: none;
+		box-shadow: none;
 	}
 </style>
