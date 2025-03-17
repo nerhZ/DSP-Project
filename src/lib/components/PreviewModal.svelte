@@ -15,7 +15,6 @@
 <dialog
 	bind:this={previewModalRef}
 	class="modal min-w-full"
-	onclose={() => (previewFile = null)}
 	class:pdf-modal={previewFile && mime.getType(previewFile.name) == 'application/pdf'}
 >
 	<div class="modal-box max-h-[90vh] w-full overflow-hidden md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">

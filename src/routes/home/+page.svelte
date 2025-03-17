@@ -133,6 +133,8 @@
 	}
 
 	function openPreview(file: PreviewFile) {
+		// Reset it before loading the new file
+		previewFile = null;
 		let mimedFileType = mime.getType(file.name);
 		if (!mimedFileType) {
 			toastGen.addToast('File type not supported.', 'alert-error');
