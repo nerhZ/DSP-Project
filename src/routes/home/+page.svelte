@@ -23,10 +23,14 @@
 	let previewModal: HTMLDialogElement | undefined = $state();
 	let toastGen = ToastGenerator();
 	let checkedFiles: string[] = $state([]);
-	let showFloatingButtons = $state(false);
+	let showFloatingButtons = $derived(checkedFiles.length > 0);
 	let lastCheckedID: number | null = $state(null);
 	let currentPage: number = $state(1);
 	let files = $state(data.files);
+
+	$effect(() => {
+		console.log($state.snapshot(checkedFiles));
+	});
 
 	$effect(() => {
 		// If props change (invalidated), update the files
@@ -117,7 +121,6 @@
 
 			if (response.ok) {
 				toastGen.addToast(result.body.message, 'alert-success');
-				showFloatingButtons = false;
 				checkedFiles = [];
 				invalidateAll();
 			} else {
@@ -146,9 +149,15 @@
 		}
 	}
 
-	function toggleCheckbox(filename: string, fileId: number, index: number, event: Event) {
-		const shiftKey = (event as MouseEvent).shiftKey;
-		const ctrlKey = (event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey;
+	function toggleCheckbox(
+		filename: string,
+		fileId: number,
+		index: number,
+		event: MouseEvent,
+		isChecked: boolean
+	) {
+		const shiftKey = event.shiftKey;
+		const ctrlKey = event.ctrlKey || event.metaKey;
 
 		if (!files) {
 			toastGen.addToast('Failed to toggle checkbox. Please try again.', 'alert-error');
@@ -165,13 +174,13 @@
 				files.findIndex((file) => file.id == lastCheckedID)
 			);
 
-			for (let i = startIndex; i <= endIndex; i++) {
-				if (!files) return;
-				const file = files[i];
-				if (file) {
-					if (!checkedFiles.includes(file.filename)) checkedFiles.push(file.filename);
-				}
-			}
+			const selectedFiles = files.slice(startIndex, endIndex + 1).map((f) => f.filename);
+
+			checkedFiles = checkedFiles.filter((f) => !selectedFiles.includes(f));
+
+			selectedFiles.forEach((f) => {
+				if (!checkedFiles.includes(f)) checkedFiles.push(f);
+			});
 		} else if (ctrlKey) {
 			if (checkedFiles.includes(filename)) {
 				checkedFiles = checkedFiles.filter((f) => f !== filename);
@@ -179,10 +188,14 @@
 				checkedFiles.push(filename);
 			}
 		} else {
-			checkedFiles = [filename];
+			// Single click
+			if (isChecked) {
+				checkedFiles = [filename];
+			} else {
+				checkedFiles = [];
+			}
 		}
 
-		showFloatingButtons = checkedFiles.length > 0;
 		lastCheckedID = fileId;
 
 		// Stop preview modal when clicking checkbox
@@ -210,7 +223,6 @@
 				currentPage = page;
 				// Reset checked files & hide floating buttons
 				checkedFiles = [];
-				showFloatingButtons = false;
 			} else {
 				toastGen.addToast(result.body.message, 'alert-error');
 			}
@@ -248,7 +260,14 @@
 										type="checkbox"
 										class="checkbox"
 										checked={checkedFiles.includes(file.filename)}
-										onclick={(event) => toggleCheckbox(file.filename, file.id, i, event)}
+										onclick={(event) =>
+											toggleCheckbox(
+												file.filename,
+												file.id,
+												i,
+												event,
+												(event.target as HTMLInputElement).checked
+											)}
 									/>
 								</label></th
 							>
@@ -316,11 +335,11 @@
 {#if showFloatingButtons}
 	<div class="fixed bottom-5 right-5 z-50" in:scale out:scale>
 		<button type="button" aria-label="Delete" onclick={() => submitGroupDownload(checkedFiles)}
-			><img src={downloadIcon} class="cursor-pointer" width="100px" alt="Download icon" /></button
-		>
+			><img src={downloadIcon} class="cursor-pointer" width="100px" alt="Download icon" />
+		</button>
 		<button type="button" aria-label="Delete" onclick={() => submitGroupDeletion(checkedFiles)}
-			><img src={Bin} class="cursor-pointer" width="100px" alt="Bin icon" /></button
-		>
+			><img src={Bin} class="cursor-pointer" width="100px" alt="Bin icon" />
+		</button>
 	</div>
 {/if}
 
