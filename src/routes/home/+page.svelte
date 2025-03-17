@@ -12,19 +12,19 @@
 
 	let { data } = $props();
 
-	type File = {
+	type PreviewFile = {
 		name: string;
 		dataBase64: string;
 		dataBlob: Blob;
 		dataURL: string;
 	};
 
-	let previewFile: File | null = $state(null);
+	let previewFile: PreviewFile | null = $state(null);
 	let previewModal: HTMLDialogElement | undefined = $state();
 	let toastGen = ToastGenerator();
 	let checkedFiles: string[] = $state([]);
 	let showFloatingButtons = $state(false);
-	let lastCheckedIndex: number | null = $state(null);
+	let lastCheckedID: number | null = $state(null);
 	let currentPage: number = $state(1);
 	let files = $state(data.files);
 
@@ -129,7 +129,7 @@
 		}
 	}
 
-	function openPreview(file: File) {
+	function openPreview(file: PreviewFile) {
 		let mimedFileType = mime.getType(file.name);
 		if (!mimedFileType) {
 			toastGen.addToast('File type not supported.', 'alert-error');
@@ -146,19 +146,30 @@
 		}
 	}
 
-	function toggleCheckbox(filename: string, index: number, event: Event) {
+	function toggleCheckbox(filename: string, fileId: number, index: number, event: Event) {
 		const shiftKey = (event as MouseEvent).shiftKey;
 		const ctrlKey = (event as MouseEvent).ctrlKey || (event as MouseEvent).metaKey;
 
-		if (shiftKey && lastCheckedIndex !== null) {
-			const startIndex = Math.min(index, lastCheckedIndex);
-			const endIndex = Math.max(index, lastCheckedIndex);
+		if (!files) {
+			toastGen.addToast('Failed to toggle checkbox. Please try again.', 'alert-error');
+			return;
+		}
+
+		if (shiftKey && lastCheckedID !== null) {
+			const startIndex = Math.min(
+				index,
+				files.findIndex((file) => file.id == lastCheckedID)
+			);
+			const endIndex = Math.max(
+				index,
+				files.findIndex((file) => file.id == lastCheckedID)
+			);
 
 			for (let i = startIndex; i <= endIndex; i++) {
-				if (!data.files) return;
-				const file = data.files[i];
+				if (!files) return;
+				const file = files[i];
 				if (file) {
-					checkedFiles.push(file.filename);
+					if (!checkedFiles.includes(file.filename)) checkedFiles.push(file.filename);
 				}
 			}
 		} else if (ctrlKey) {
@@ -172,7 +183,7 @@
 		}
 
 		showFloatingButtons = checkedFiles.length > 0;
-		lastCheckedIndex = index;
+		lastCheckedID = fileId;
 
 		// Stop preview modal when clicking checkbox
 		event.stopPropagation();
@@ -197,6 +208,9 @@
 			if (response.ok) {
 				files = result.body.files;
 				currentPage = page;
+				// Reset checked files & hide floating buttons
+				checkedFiles = [];
+				showFloatingButtons = false;
 			} else {
 				toastGen.addToast(result.body.message, 'alert-error');
 			}
@@ -234,7 +248,7 @@
 										type="checkbox"
 										class="checkbox"
 										checked={checkedFiles.includes(file.filename)}
-										onclick={(event) => toggleCheckbox(file.filename, i, event)}
+										onclick={(event) => toggleCheckbox(file.filename, file.id, i, event)}
 									/>
 								</label></th
 							>

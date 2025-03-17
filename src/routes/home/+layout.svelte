@@ -7,6 +7,12 @@
 	let pageSizeSelect: HTMLSelectElement | undefined = $state();
 	import { invalidateAll } from '$app/navigation';
 
+	$effect(() => {
+		if (data.pageSize && typeof parseInt(data.pageSize) == 'number') {
+			if (pageSizeSelect) pageSizeSelect.value = data.pageSize;
+		}
+	});
+
 	function toggleSidebar() {
 		if (sidebarElement) sidebarElement.checked = !sidebarElement.checked;
 	}
@@ -56,13 +62,15 @@
 		>
 			<!-- Sidebar content here -->
 			<li>
-				<select class="select" onchange={setPageLengthCookie} bind:this={pageSizeSelect}>
-					<option disabled selected>Pick files per page</option>
-					<option>10</option>
-					<option>20</option>
-					<option>50</option>
-					<option>100</option>
-				</select>
+				<fieldset class="fieldset">
+					<legend class="fieldset-legend">Set a Page Length</legend>
+					<select class="select" onchange={setPageLengthCookie} bind:this={pageSizeSelect}>
+						<option>10</option>
+						<option>20</option>
+						<option>50</option>
+						<option>100</option>
+					</select>
+				</fieldset>
 			</li>
 		</ul>
 	</div>
