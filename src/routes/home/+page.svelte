@@ -33,8 +33,9 @@
 	});
 
 	$effect(() => {
-		// If props change (invalidated), update the files
+		// If props change (invalidated), update the files and reset current page
 		files = data.files;
+		currentPage = 1;
 	});
 
 	async function submitFileForm(filename: string) {
