@@ -4,9 +4,10 @@
 	import { goto } from '$app/navigation';
 	import uploadImage from '$lib/images/upload-svgrepo-com.svg';
 	import UploadModal from '$lib/components/UploadModal.svelte';
+	import { sidebarState } from '$lib/storage.svelte';
 
 	let toastGen = ToastGenerator();
-	let { data, toggleSidebar } = $props();
+	let { data } = $props();
 
 	let uploadModalRef: HTMLDialogElement | undefined = $state();
 </script>
@@ -40,7 +41,12 @@
 		<ul class="menu menu-horizontal px-1"></ul>
 	</div>
 	<div class="navbar-end">
-		<button onclick={toggleSidebar} class="btn btn-sm btn-primary lg:hidden">
+		<button
+			onclick={() => {
+				sidebarState.open = !sidebarState.open;
+			}}
+			class="btn btn-sm btn-primary lg:hidden"
+		>
 			Open Filter/Search
 		</button>
 		<button

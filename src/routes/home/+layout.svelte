@@ -1,99 +1,12 @@
 <script lang="ts">
 	import Navbar from '$lib/components/Navbar.svelte';
-	import { ToastGenerator } from '$lib/toast.svelte.js';
-	let sidebarElement: HTMLInputElement | undefined = $state();
 	let { data, children } = $props();
-	let toastGen = ToastGenerator();
-	let pageSizeSelect: HTMLSelectElement | undefined = $state();
-	import { invalidateAll } from '$app/navigation';
 
-	$effect(() => {
-		if (data.pageSize && typeof parseInt(data.pageSize) == 'number') {
-			if (pageSizeSelect) pageSizeSelect.value = data.pageSize;
-		}
-	});
-
-	function toggleSidebar() {
-		if (sidebarElement) sidebarElement.checked = !sidebarElement.checked;
-	}
-
-	async function setPageLengthCookie() {
-		try {
-			if (!pageSizeSelect) {
-				toastGen.addToast('Failed to set page size. Please try again.', 'alert-error');
-				return;
-			}
-
-			const pageSize = pageSizeSelect.value;
-			const response = await fetch('/api/setPageSize', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ pageSize })
-			});
-			const result = await response.json();
-
-			if (response.ok) {
-				toastGen.addToast(result.body.message, 'alert-success');
-				invalidateAll();
-			} else {
-				toastGen.addToast(result.body.message, 'alert-error');
-			}
-		} catch (error) {
-			console.error('Error fetching page:', error);
-			toastGen.addToast('Failed to set page size. Please try again.', 'alert-error');
-		}
-	}
+	// function toggleSidebar() {
+	// 	if (sidebarElement) sidebarElement.checked = !sidebarElement.checked;
+	// }
 </script>
 
-<Navbar {data} {toggleSidebar} />
+<Navbar {data} />
 
-<div class="drawer lg:drawer-open">
-	<input id="sidebar" type="checkbox" class="drawer-toggle" bind:this={sidebarElement} />
-	<div class="drawer-content flex max-w-full flex-col">
-		<!-- Page content here -->
-		{@render children()}
-	</div>
-	<div class="drawer-side">
-		<label for="sidebar" aria-label="close sidebar" class="drawer-overlay"></label>
-		<ul
-			class="menu bg-base-200 text-base-content lg:bg-base-100 border-base-300 min-h-full w-80 border-r-2 p-4"
-		>
-			<!-- Sidebar content here -->
-			<li>
-				<fieldset class="fieldset no-hover cursor-default">
-					<legend class="fieldset-legend">Set a Page Length</legend>
-					<select
-						class="select cursor-pointer"
-						onchange={setPageLengthCookie}
-						bind:this={pageSizeSelect}
-					>
-						<option>10</option>
-						<option>20</option>
-						<option>50</option>
-						<option>100</option>
-					</select>
-				</fieldset>
-			</li>
-		</ul>
-	</div>
-</div>
-
-<style>
-	select option:disabled {
-		display: none;
-	}
-
-	.fieldset.no-hover {
-		border: none;
-		padding: 0;
-		margin: 0;
-	}
-	.fieldset.no-hover:hover,
-	.fieldset.no-hover:focus {
-		background-color: transparent;
-		outline: none;
-		box-shadow: none;
-	}
-</style>
+{@render children()}

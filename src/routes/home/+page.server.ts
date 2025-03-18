@@ -29,7 +29,6 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 	const noOfFilesDestructured = noOfFiles[0].files;
 	const noOfPages = Math.ceil(noOfFilesDestructured / pageSizeInt);
 
-	let files: { name: string; data: string; uploaded: Date }[] = [];
 	try {
 		const files = await db
 			.select()
