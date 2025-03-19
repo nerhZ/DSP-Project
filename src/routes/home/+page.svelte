@@ -9,6 +9,7 @@
 	let { data }: { data: HomeProps } = $props();
 	let pageSizeSelect: HTMLSelectElement | undefined = $state();
 	let sidebarElement: HTMLInputElement | undefined = $state();
+	let searchQuery: string | null = $state(null);
 
 	$effect.pre(() => {
 		if (data.pageSize) {
@@ -60,7 +61,7 @@
 	<input id="sidebar" type="checkbox" class="drawer-toggle" bind:this={sidebarElement} />
 	<div class="drawer-content flex max-w-full flex-col">
 		<!-- Page content here -->
-		<Home {data} />
+		<Home {data} bind:searchQuery />
 	</div>
 	<div class="drawer-side">
 		<label for="sidebar" aria-label="close sidebar" class="drawer-overlay"></label>
@@ -77,10 +78,22 @@
 						bind:this={pageSizeSelect}
 					>
 						<option>10</option>
+						<option>15</option>
 						<option>20</option>
 						<option>50</option>
 						<option>100</option>
 					</select>
+				</fieldset>
+			</li>
+			<li>
+				<fieldset class="fieldset no-hover cursor-default">
+					<legend class="fieldset-legend">Search</legend>
+					<div class="join">
+						<label class="input join-item">
+							<input type="text" placeholder="Type to Search" required bind:value={searchQuery} />
+						</label>
+						<button class="btn btn-primary join-item">Search</button>
+					</div>
 				</fieldset>
 			</li>
 		</ul>

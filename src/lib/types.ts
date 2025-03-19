@@ -17,4 +17,5 @@ export interface HomeProps {
 	}[];
 	pageSize: number;
 	noOfPages: number;
+	totalFiles?: number;
 }

@@ -11,7 +11,8 @@
 	import { scale } from 'svelte/transition';
 	import type { HomeProps } from '$lib/types';
 
-	let { data }: { data: HomeProps } = $props();
+	let { data, searchQuery = $bindable() }: { data: HomeProps; searchQuery: string | null } =
+		$props();
 
 	type PreviewFile = {
 		name: string;
@@ -33,6 +34,14 @@
 		// If props change (invalidated), update the files and reset current page
 		files = data.files;
 		currentPage = 1;
+	});
+
+	$effect(() => {
+		if (searchQuery) {
+			fetchPage(1, searchQuery);
+		} else {
+			fetchPage(1);
+		}
 	});
 
 	async function submitFileForm(filename: string) {
@@ -202,9 +211,14 @@
 		event.stopPropagation();
 	}
 
-	async function fetchPage(page: number) {
+	async function fetchPage(page: number, search: string = '') {
+		// Modified: Added search parameter
 		try {
-			if (data.noOfPages && (page < 1 || page > data.noOfPages)) {
+			if (
+				data.totalFiles &&
+				data.pageSize &&
+				(page < 1 || page > Math.ceil(data.totalFiles / data.pageSize))
+			) {
 				toastGen.addToast('Invalid page number.', 'alert-error');
 				return;
 			}
@@ -214,13 +228,14 @@
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ pageNum: page })
+				body: JSON.stringify({ pageNum: page, searchQuery: search })
 			});
 			const result = await response.json();
 
 			if (response.ok) {
 				files = result.body.files;
 				currentPage = page;
+				data.totalFiles = result.body.totalCount;
 				// Reset checked files & hide floating buttons
 				checkedFiles = [];
 			} else {
@@ -293,7 +308,7 @@
 		{#if data && data.noOfPages && data.noOfPages <= 3}
 			{#each Array(data.noOfPages ?? 1) as _, i}
 				<button
-					class="join-item btn btn-lg"
+					class="join-item btn btn-primary btn-lg"
 					onclick={() => {
 						fetchPage(i + 1);
 					}}>{i + 1}</button

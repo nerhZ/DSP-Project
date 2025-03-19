@@ -25,3 +25,16 @@ export function base64ToBlobAndURL(base64: string, fileName: string): { blob: Bl
 export function capitalise(str: string): string {
 	return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+export function debounce(func: (...args: any[]) => Promise<void>, wait: number) {
+	let timeout: NodeJS.Timeout | null = null;
+	return (...args: any[]) => {
+		if (timeout) {
+			clearTimeout(timeout);
+		}
+		timeout = setTimeout(() => {
+			func(...args);
+			timeout = null;
+		}, wait);
+	};
+}
