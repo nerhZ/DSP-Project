@@ -36,7 +36,7 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 			.where(eq(table.user_file.userId, session.userId))
 			.limit(pageSizeInt);
 
-		return { files, noOfPages, pageSize: pageSizeInt };
+		return { files, noOfPages, pageSize: pageSizeInt, totalFiles: noOfFilesDestructured };
 	} catch (err) {
 		fail(500, { message: 'Failed to read from database!' });
 	}
