@@ -35,12 +35,17 @@
 	let pageSizeSelect: HTMLSelectElement | undefined = $state();
 	let sidebarElement: HTMLInputElement | undefined = $state();
 	let previewModal: HTMLDialogElement | undefined = $state();
-	let typeSelect: HTMLSelectElement | undefined = $state();
+	let typeSelect: string | null = $state(null);
 	let startDate: string | null = $state(null);
 	let endDate: string | null = $state(null);
 
 	$effect.pre(() => {
 		if (pageSizeSelect) pageSizeSelect.value = pageSize.toString();
+		// Ensuring that they are reset when the page is loaded, not allowing browser to remember the values
+		startDate = null;
+		endDate = null;
+		typeSelect = null;
+		searchQuery = null;
 	});
 
 	$effect(() => {
