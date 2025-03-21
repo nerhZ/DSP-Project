@@ -21,7 +21,6 @@
 		dataBlob: Blob;
 		dataURL: string;
 	} | null = $state(null);
-	let previewModal: HTMLDialogElement | undefined = $state();
 	let checkedFiles: string[] = $state([]);
 	let showFloatingButtons = $derived(checkedFiles.length > 0);
 	let lastCheckedID: number | null = $state(null);
@@ -29,11 +28,18 @@
 	let files = $state(data.files);
 	let totalFiles: number | undefined = $state(data.totalFiles);
 	let pageSize: number = $state(10);
-	let noOfPages: number | undefined = $state(data.noOfPages);
+	let noOfPages: number | undefined = $derived.by(() => {
+		if (totalFiles && pageSize) {
+			return Math.ceil(totalFiles / pageSize);
+		}
+	});
 	let searchQuery: string | null = $state(null);
+	const debouncedFetchData = debounce(fetchData, 500);
+
 	let pageSizeSelect: HTMLSelectElement | undefined = $state();
 	let sidebarElement: HTMLInputElement | undefined = $state();
-	const debouncedFetchData = debounce(fetchData, 500);
+	let previewModal: HTMLDialogElement | undefined = $state();
+	let typeSelect: HTMLSelectElement | undefined = $state();
 
 	$effect.pre(() => {
 		if (pageSizeSelect) pageSizeSelect.value = pageSize.toString();
@@ -49,21 +55,30 @@
 		}
 	});
 
-	async function fetchData() {
+	async function fetchData(page: number = 1) {
 		try {
+			currentPage = page;
 			const response = await fetch('/api/loadFiles', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ pageNum: currentPage, searchQuery: searchQuery, pageSize: pageSize })
+				body: JSON.stringify({
+					pageNum: currentPage,
+					searchQuery: searchQuery,
+					pageSize: pageSize,
+					fileType: typeSelect
+				})
 			});
 			const result = await response.json();
 
 			if (response.ok) {
 				files = result.body.files;
 				totalFiles = result.body.totalCount;
-				if (totalFiles) noOfPages = Math.ceil(totalFiles / pageSize);
+				if (!totalFiles) {
+					toastGen.addToast('No files found...', 'alert-error');
+					return;
+				}
 				// Reset checked files & hide floating buttons
 				checkedFiles = [];
 			} else {
@@ -247,43 +262,6 @@
 		event.stopPropagation();
 	}
 
-	async function fetchPage(page: number, search: string = '') {
-		// Modified: Added search parameter
-		try {
-			if (!noOfPages) {
-				toastGen.addToast('No pages of files found...', 'alert-error');
-				return;
-			}
-			if (page < 1 || page > noOfPages) {
-				toastGen.addToast('Invalid page number.', 'alert-error');
-				return;
-			}
-
-			const response = await fetch('/api/loadFiles', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ pageNum: page, searchQuery: search, pageSize: pageSize })
-			});
-			const result = await response.json();
-
-			if (response.ok) {
-				files = result.body.files;
-				currentPage = page;
-				totalFiles = result.body.totalCount;
-				if (totalFiles) noOfPages = Math.ceil(totalFiles / pageSize);
-				// Reset checked files & hide floating buttons
-				checkedFiles = [];
-			} else {
-				toastGen.addToast(result.body.message, 'alert-error');
-			}
-		} catch (error) {
-			console.error('Error fetching page:', error);
-			toastGen.addToast('Failed to fetch page. Please try again.', 'alert-error');
-		}
-	}
-
 	async function setPageLengthCookie() {
 		try {
 			if (!pageSizeSelect) {
@@ -303,7 +281,8 @@
 
 			if (response.ok) {
 				toastGen.addToast(result.body.message, 'alert-success');
-				fetchPage(1);
+				fetchData(1);
+				console.log('Page size set to:', noOfPages);
 			} else {
 				toastGen.addToast(result.body.message, 'alert-error');
 			}
@@ -375,12 +354,12 @@
 				</div>
 			</div>
 			<div class="join justify-center">
-				{#if data && data.noOfPages && data.noOfPages <= 3}
-					{#each Array(data.noOfPages ?? 1) as _, i}
+				{#if noOfPages && noOfPages <= 3}
+					{#each Array(noOfPages ?? 1) as _, i}
 						<button
 							class="join-item btn btn-primary btn-lg"
 							onclick={() => {
-								fetchPage(i + 1);
+								fetchData(i + 1);
 							}}>{i + 1}</button
 						>
 					{/each}
@@ -388,14 +367,22 @@
 					<button
 						class="join-item btn btn-lg"
 						onclick={() => {
-							fetchPage(currentPage - 1);
+							if (currentPage === 1) {
+								toastGen.addToast('You are already on the first page.', 'alert-error');
+								return;
+							}
+							fetchData(currentPage - 1);
 						}}>«</button
 					>
 					<select class="join-item btn btn-lg select-button">
-						{#each Array(data.noOfPages ?? 1) as _, i}
+						{#each Array(noOfPages ?? 1) as _, i}
 							<option
 								onclick={() => {
-									fetchPage(i + 1);
+									if (currentPage === noOfPages) {
+										toastGen.addToast('You are already on the last page.', 'alert-error');
+										return;
+									}
+									fetchData(i + 1);
 								}}>{i + 1}</option
 							>
 						{/each}
@@ -403,7 +390,7 @@
 					<button
 						class="join-item btn btn-lg"
 						onclick={() => {
-							fetchPage(currentPage + 1);
+							fetchData(currentPage + 1);
 						}}>»</button
 					>
 				{/if}
@@ -450,12 +437,31 @@
 								required
 								bind:value={searchQuery}
 								oninput={() => {
-									debouncedFetchData(currentPage, searchQuery);
+									debouncedFetchData(currentPage);
 								}}
 							/>
 						</label>
 						<button class="btn btn-primary join-item">Search</button>
 					</div>
+				</fieldset>
+			</li>
+			<li>
+				<fieldset class="fieldset no-hover cursor-default">
+					<legend class="fieldset-legend">Filter by Type</legend>
+					<select
+						class="select cursor-pointer"
+						bind:value={typeSelect}
+						onchange={() => fetchData()}
+					>
+						{#if data.fileTypes}
+							<option value={null}>Any</option>
+							{#each data.fileTypes as type}
+								<option value={type.mimetype}
+									>{type.mimetype.charAt(0).toUpperCase() + type.mimetype.slice(1)}</option
+								>
+							{/each}
+						{/if}
+					</select>
 				</fieldset>
 			</li>
 		</ul>

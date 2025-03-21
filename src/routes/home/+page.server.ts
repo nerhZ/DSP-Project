@@ -36,7 +36,17 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 			.where(eq(table.user_file.userId, session.userId))
 			.limit(pageSizeInt);
 
-		return { files, noOfPages, pageSize: pageSizeInt, totalFiles: noOfFilesDestructured };
+		const fileTypes = await db
+			.selectDistinct({ mimetype: table.user_file.mimetype })
+			.from(table.user_file)
+			.where(eq(table.user_file.userId, session.userId));
+
+		return {
+			files,
+			pageSize: pageSizeInt,
+			totalFiles: noOfFilesDestructured,
+			fileTypes
+		};
 	} catch (err) {
 		fail(500, { message: 'Failed to read from database!' });
 	}
