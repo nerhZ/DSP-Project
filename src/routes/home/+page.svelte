@@ -189,12 +189,7 @@
 		}
 	}
 
-	function openPreview(file: {
-		name: string;
-		dataBase64: string;
-		dataBlob: Blob;
-		dataURL: string;
-	}) {
+	function openPreview(file: previewFile) {
 		// Reset it before loading the new file
 		previewFile = null;
 		let mimedFileType = mime.getType(file.name);
@@ -298,7 +293,15 @@
 </script>
 
 <div class="drawer lg:drawer-open">
-	<input id="sidebar" type="checkbox" class="drawer-toggle" bind:this={sidebarElement} />
+	<input
+		id="sidebar"
+		type="checkbox"
+		class="drawer-toggle"
+		bind:this={sidebarElement}
+		onchange={() => {
+			sidebarState.open = !sidebarState.open;
+		}}
+	/>
 	<div class="drawer-content flex max-w-full flex-col">
 		<!-- Page content here -->
 		{#if (files ?? []).length > 0 && data.pageSize}
@@ -357,7 +360,7 @@
 					</table>
 				</div>
 			</div>
-			<div class="join justify-center">
+			<div class="join mt-3 justify-center">
 				{#if noOfPages && noOfPages <= 3}
 					{#each Array(noOfPages ?? 1) as _, i}
 						<button
