@@ -23,7 +23,7 @@
 	let currentPage: number = $state(1);
 	let files = $state(data.files);
 	let totalFiles: number | undefined = $state(data.totalFiles);
-	let pageSize: number = $state(10);
+	let pageSize: number | undefined = $state(data.pageSize);
 	let noOfPages: number | undefined = $derived.by(() => {
 		if (totalFiles && pageSize) {
 			return Math.ceil(totalFiles / pageSize);
@@ -40,7 +40,9 @@
 	let endDate: string | null = $state(null);
 
 	$effect.pre(() => {
-		if (pageSizeSelect) pageSizeSelect.value = pageSize.toString();
+		if (pageSizeSelect && data.pageSize) {
+			pageSizeSelect.value = data.pageSize.toString();
+		}
 		// Ensuring that they are reset when the page is loaded, not allowing browser to remember the values
 		startDate = null;
 		endDate = null;
