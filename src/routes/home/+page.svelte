@@ -40,6 +40,8 @@
 	let sidebarElement: HTMLInputElement | undefined = $state();
 	let previewModal: HTMLDialogElement | undefined = $state();
 	let typeSelect: HTMLSelectElement | undefined = $state();
+	let startDate: string | null = $state(null);
+	let endDate: string | null = $state(null);
 
 	$effect.pre(() => {
 		if (pageSizeSelect) pageSizeSelect.value = pageSize.toString();
@@ -67,7 +69,9 @@
 					pageNum: currentPage,
 					searchQuery: searchQuery,
 					pageSize: pageSize,
-					fileType: typeSelect
+					fileType: typeSelect,
+					startDate,
+					endDate
 				})
 			});
 			const result = await response.json();
@@ -459,6 +463,32 @@
 							{/each}
 						{/if}
 					</select>
+				</fieldset>
+			</li>
+			<li>
+				<fieldset class="fieldset no-hover cursor-default">
+					<legend class="fieldset-legend">Filter by Date Range (start - end)</legend>
+					<div class="join">
+						<label class="input join-item">
+							<input
+								type="date"
+								bind:value={startDate}
+								onchange={() => {
+									if (startDate && endDate && new Date(startDate) > new Date(endDate))
+										endDate = null;
+									fetchData();
+								}}
+							/>
+						</label>
+						<label class="input join-item">
+							<input
+								type="date"
+								bind:value={endDate}
+								min={startDate}
+								onchange={() => fetchData()}
+							/>
+						</label>
+					</div>
 				</fieldset>
 			</li>
 		</ul>

@@ -32,9 +32,13 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 			whereClauses.push(eq(table.user_file.mimetype, fileType));
 		}
 		if (startDate && endDate) {
-			whereClauses.push(
-				between(table.user_file.uploadedAt, new Date(startDate), new Date(endDate))
-			);
+			const start = new Date(startDate);
+			const end = new Date(endDate);
+			// Set the time to the start and end of the day, to ensure the date range is inclusive
+			start.setHours(0, 0, 0, 0);
+			end.setHours(23, 59, 59, 999);
+
+			whereClauses.push(between(table.user_file.uploadedAt, start, end));
 		}
 
 		if (whereClauses.length > 0) {
