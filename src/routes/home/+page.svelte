@@ -429,20 +429,17 @@
 			<li>
 				<fieldset class="fieldset no-hover cursor-default">
 					<legend class="fieldset-legend">Search</legend>
-					<div class="join">
-						<label class="input join-item">
-							<input
-								type="text"
-								placeholder="Type to Search"
-								required
-								bind:value={searchQuery}
-								oninput={() => {
-									debouncedFetchData(currentPage);
-								}}
-							/>
-						</label>
-						<button class="btn btn-primary join-item">Search</button>
-					</div>
+					<label class="input">
+						<input
+							type="text"
+							placeholder="Type to Search"
+							required
+							bind:value={searchQuery}
+							oninput={() => {
+								debouncedFetchData(currentPage);
+							}}
+						/>
+					</label>
 				</fieldset>
 			</li>
 			<li>
