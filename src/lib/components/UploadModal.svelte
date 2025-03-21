@@ -81,6 +81,7 @@
 						src={uploadedImage ? uploadedImage : uploadImage}
 						width="250px"
 						alt="Upload files symbol"
+						class="cursor-pointer"
 					/>
 				</button>
 				{#if selectedFiles.length === 1}

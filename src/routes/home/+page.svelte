@@ -11,16 +11,12 @@
 	import { scale } from 'svelte/transition';
 	import { sidebarState } from '$lib/storage.svelte';
 	import { debounce } from '$lib/utils.js';
+	import type { previewFileType } from '$lib/types';
 
 	let { data } = $props();
 
 	let toastGen = ToastGenerator();
-	let previewFile: {
-		name: string;
-		dataBase64: string;
-		dataBlob: Blob;
-		dataURL: string;
-	} | null = $state(null);
+	let previewFile: previewFileType | null = $state(null);
 	let checkedFiles: string[] = $state([]);
 	let showFloatingButtons = $derived(checkedFiles.length > 0);
 	let lastCheckedID: number | null = $state(null);
@@ -189,7 +185,7 @@
 		}
 	}
 
-	function openPreview(file: previewFile) {
+	function openPreview(file: previewFileType) {
 		// Reset it before loading the new file
 		previewFile = null;
 		let mimedFileType = mime.getType(file.name);

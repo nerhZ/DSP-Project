@@ -19,3 +19,10 @@ export interface HomeProps {
 	noOfPages: number;
 	totalFiles?: number;
 }
+
+export interface previewFileType {
+	name: string;
+	dataBase64: string;
+	dataBlob: Blob;
+	dataURL: string;
+}
