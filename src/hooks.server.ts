@@ -24,6 +24,10 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		return redirect(302, '/');
 	}
 
+	if (event.url.pathname.startsWith('/api') && !event.locals.session?.userId) {
+		return redirect(302, '/login');
+	}
+
 	return resolve(event);
 };
 

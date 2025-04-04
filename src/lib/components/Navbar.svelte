@@ -77,6 +77,6 @@
 		</form>
 	</div>
 </div>
-<div class="border-base-300 m-auto mb-5 w-10/12 border-b-2"></div>
+<div class="m-auto mb-5 w-10/12 border-b-2 border-b-emerald-950"></div>
 
 <UploadModal bind:uploadModal={uploadModalRef} />

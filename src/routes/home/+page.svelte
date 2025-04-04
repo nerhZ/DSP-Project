@@ -375,7 +375,7 @@
 					{/each}
 				{:else}
 					<button
-						class="join-item btn btn-lg"
+						class="join-item btn btn-lg btn-primary"
 						onclick={() => {
 							if (currentPage === 1) {
 								toastGen.addToast('You are already on the first page.', 'alert-error');
@@ -384,7 +384,7 @@
 							fetchData(currentPage - 1);
 						}}>«</button
 					>
-					<select class="join-item btn btn-lg select-button">
+					<select class="join-item btn btn-lg btn-primary select-button">
 						{#each Array(noOfPages ?? 1) as _, i}
 							<option
 								onclick={() => {
@@ -398,7 +398,7 @@
 						{/each}
 					</select>
 					<button
-						class="join-item btn btn-lg"
+						class="join-item btn btn-primary btn-lg"
 						onclick={() => {
 							fetchData(currentPage + 1);
 						}}>»</button
@@ -417,7 +417,7 @@
 	<div class="drawer-side">
 		<label for="sidebar" aria-label="close sidebar" class="drawer-overlay"></label>
 		<ul
-			class="menu bg-base-200 text-base-content lg:bg-base-100 border-base-300 min-h-full w-80 border-r-2 p-4"
+			class="menu bg-base-200 text-base-content lg:bg-base-100 min-h-full w-80 border-r-2 border-r-emerald-950 p-4"
 		>
 			<!-- Sidebar content here -->
 			<li>
