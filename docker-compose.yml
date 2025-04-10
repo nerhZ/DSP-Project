@@ -58,7 +58,7 @@ services:
       - '80:80'
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro # Ensure this is a file mount
-      - /dev/SSL-storage:/etc/nginx/ssl
+      - /home/zhren/SSL-storage:/etc/nginx/ssl
     depends_on:
       - web
 
