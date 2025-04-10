@@ -157,7 +157,7 @@ export const actions: Actions = {
 				return fail(409, { message: 'A folder with this name already exists in this location.' });
 			}
 
-			// --- 3. Check if filesystem path already exists ---
+			// Check if filesystem path already exists
 			try {
 				await fsp.access(newFolderPath);
 				return fail(409, {
