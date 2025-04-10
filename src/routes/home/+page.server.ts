@@ -1,10 +1,12 @@
 import type { PageServerLoad, Actions, PageServerLoadEvent } from './$types';
 import fs from 'node:fs';
+import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
-import { count, eq, and, like } from 'drizzle-orm';
+import { count, eq, and, like, isNull } from 'drizzle-orm';
+import { sanitizePathSegment } from '$lib/utils';
 
 export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 	const session = event.locals.session;
@@ -12,6 +14,9 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 	if (!session || !session.userId) {
 		return fail(401, { message: 'Not authenticated - please try login again.' });
 	}
+
+	// Get the folder ID from the URL
+	const parentId = event.url.searchParams.get('folderId') || null;
 
 	let pageSize = event.cookies.get('pageSize');
 	let pageSizeInt: number;
@@ -22,18 +27,35 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 		pageSizeInt = 15;
 	}
 
-	const noOfFiles = await db
-		.select({ files: count() })
-		.from(table.user_file)
-		.where(eq(table.user_file.userId, session.userId));
-	const noOfFilesDestructured = noOfFiles[0].files;
-	const noOfPages = Math.ceil(noOfFilesDestructured / pageSizeInt);
-
 	try {
+		// Filter conditions based on whether valid parentId is provided - for the folder table
+		const parentFilter = parentId
+			? eq(table.folder.parentFolderId, parentId)
+			: isNull(table.folder.parentFolderId);
+
+		// Filter condition based on whether valid parentId is provided - for the user_file table
+		const fileParentFilter = parentId
+			? eq(table.user_file.folderId, parentId)
+			: isNull(table.user_file.folderId);
+
+		// Fetch Folders for the current level
+		const folders = await db
+			.select()
+			.from(table.folder)
+			.where(and(eq(table.folder.userId, session.userId), parentFilter));
+
+		// Fetch Files count for the current level
+		const noOfFilesResult = await db
+			.select({ files: count() })
+			.from(table.user_file)
+			.where(and(eq(table.user_file.userId, session.userId), fileParentFilter));
+		const noOfFilesDestructured = noOfFilesResult[0]?.files ?? 0;
+
+		// Fetch Files for the current level (paginated)
 		const files = await db
 			.select()
 			.from(table.user_file)
-			.where(eq(table.user_file.userId, session.userId))
+			.where(and(eq(table.user_file.userId, session.userId), fileParentFilter))
 			.limit(pageSizeInt);
 
 		const fileTypes = await db
@@ -41,11 +63,27 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 			.from(table.user_file)
 			.where(eq(table.user_file.userId, session.userId));
 
+		let currentFolder = null;
+		if (parentId) {
+			const folderResult = await db
+				.select({
+					id: table.folder.id,
+					name: table.folder.name,
+					parentId: table.folder.parentFolderId
+				})
+				.from(table.folder)
+				.where(and(eq(table.folder.id, parentId), eq(table.folder.userId, session.userId)));
+			currentFolder = folderResult[0] || null;
+		}
+
 		return {
+			folders,
 			files,
 			pageSize: pageSizeInt,
 			totalFiles: noOfFilesDestructured,
-			fileTypes
+			fileTypes,
+			currentParentId: parentId,
+			currentFolder: currentFolder
 		};
 	} catch (err) {
 		fail(500, { message: 'Failed to read from database!' });
@@ -53,6 +91,120 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 };
 
 export const actions: Actions = {
+	createFolder: async (event) => {
+		const currentUser = event.locals.session?.userId;
+
+		if (!currentUser) {
+			return fail(401, { message: 'Not authenticated, please login again' });
+		}
+
+		const formData = await event.request.formData();
+		const folderName = formData.get('folderName');
+
+		const parentId = formData.get('parentId') as string | null;
+
+		if (!folderName || typeof folderName !== 'string' || folderName.trim() === '') {
+			return fail(400, { message: 'Folder name cannot be empty' });
+		}
+
+		const trimmedFolderName = folderName.trim();
+		const sanitizedFolderName = sanitizePathSegment(trimmedFolderName); // Sanitize for path use
+
+		if (!sanitizedFolderName) {
+			return fail(400, {
+				message: 'Folder name contains invalid characters or is empty after sanitization.'
+			});
+		}
+
+		let parentUri = '';
+		let newFolderUri = sanitizedFolderName;
+		const baseUserPath = path.join('/mnt', 'AppStorage', currentUser);
+		let newFolderPath = path.join(baseUserPath, newFolderUri);
+
+		try {
+			// Fetch parent URI (Path) if creating a subfolder
+			console.log('Current parentId', parentId);
+			if (parentId) {
+				const parentFolderResult = await db
+					.select({ uri: table.folder.URI })
+					.from(table.folder)
+					.where(and(eq(table.folder.id, parentId), eq(table.folder.userId, currentUser)))
+					.limit(1);
+
+				if (parentFolderResult.length === 0) {
+					return fail(404, { message: 'Parent folder not found.' });
+				}
+				parentUri = parentFolderResult[0].uri;
+				newFolderUri = path.join(parentUri, sanitizedFolderName);
+				newFolderPath = path.join(baseUserPath, newFolderUri);
+			}
+
+			const existingDbFolder = await db
+				.select({ id: table.folder.id })
+				.from(table.folder)
+				.where(
+					and(
+						eq(table.folder.userId, currentUser),
+						eq(table.folder.name, trimmedFolderName),
+						parentId
+							? eq(table.folder.parentFolderId, parentId)
+							: isNull(table.folder.parentFolderId)
+					)
+				)
+				.limit(1);
+
+			if (existingDbFolder.length > 0) {
+				return fail(409, { message: 'A folder with this name already exists in this location.' });
+			}
+
+			// --- 3. Check if filesystem path already exists ---
+			try {
+				await fsp.access(newFolderPath);
+				return fail(409, {
+					message: 'A file or folder already exists at the target location on disk.'
+				});
+			} catch (accessError: any) {
+				// ENOENT means path does NOT exist
+				if (accessError.code !== 'ENOENT') {
+					console.error('Filesystem access check error:', accessError);
+					return fail(500, { message: 'Server error checking folder path.' });
+				}
+			}
+
+			try {
+				await fsp.mkdir(newFolderPath, { recursive: false }); // Create only the final directory
+				console.log('Directory created:', newFolderPath);
+			} catch (mkdirError) {
+				console.error('Failed to create directory:', mkdirError);
+				return fail(500, { message: 'Failed to create folder directory on server.' });
+			}
+
+			try {
+				await db.insert(table.folder).values({
+					userId: currentUser,
+					name: trimmedFolderName,
+					parentFolderId: parentId ? parentId : null,
+					URI: newFolderUri
+				});
+
+				return { success: true, message: 'Folder created!' };
+			} catch (dbError) {
+				console.error('Failed to insert folder into DB:', dbError);
+				// Attempt to clean up the created directory if DB insert fails
+				try {
+					await fsp.rmdir(newFolderPath);
+					console.log('Cleaned up directory after DB error:', newFolderPath);
+				} catch (cleanupError) {
+					console.error('Failed to cleanup directory after DB error:', cleanupError);
+				}
+				return fail(500, { message: 'Failed to save folder record.' });
+			}
+		} catch (err) {
+			console.error('Unexpected error creating folder:', err);
+			return fail(500, { message: 'An unexpected server error occurred.' });
+		}
+	},
+
 	upload: async (event) => {
 		const currentUser = event.locals.user?.id;
 
@@ -62,6 +214,7 @@ export const actions: Actions = {
 
 		const formData = await event.request.formData();
 		const files = formData.getAll('file') as File[];
+		const folderId = event.url.searchParams.get('folderId') || null;
 
 		if (!files || files.length === 0) {
 			return fail(400, { message: 'No file uploaded' });
@@ -142,7 +295,11 @@ export const actions: Actions = {
 				.where(
 					and(
 						eq(table.user_file.userId, currentUser),
-						like(table.user_file.filename, `${filenameBase}%`)
+						like(
+							table.user_file.filename,
+							`${path.basename(sanitizedFileName, path.extname(sanitizedFileName))}%`
+						),
+						folderId ? eq(table.user_file.folderId, folderId) : isNull(table.user_file.folderId)
 					)
 				);
 
@@ -173,13 +330,20 @@ export const actions: Actions = {
 				}
 
 				await fs.promises.writeFile(filePath, buffer);
+
+				const fileUri = folderId
+					? path.join(currentUser, folderId, sanitizedFileName)
+					: path.join(currentUser, sanitizedFileName);
+
 				insertValues.push({
 					userId: currentUser,
 					filename: sanitizedFileName,
 					extension: extension,
 					mimetype: mimetype,
 					uploadedAt: new Date(),
-					fileSize: file.size
+					fileSize: file.size,
+					URI: fileUri,
+					folderId: folderId ? folderId : null
 				});
 			} catch (err) {
 				// If error occured, db insert definitely failed so ensure file is deleted

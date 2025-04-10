@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { ToastGenerator } from '$lib/toast.svelte';
 	import uploadImage from '$lib/images/upload-svgrepo-com.svg';
+	import { invalidateAll } from '$app/navigation';
 
 	let toastGen = ToastGenerator();
 	let { uploadModal = $bindable() } = $props();
@@ -57,6 +58,7 @@
 							uploadModal.close();
 							uploadedImage = null;
 							selectedFiles = [];
+							invalidateAll();
 							break;
 						case 'error':
 							toastGen.addToast('Error uploading file, please try again.', 'alert-error');

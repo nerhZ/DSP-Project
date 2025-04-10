@@ -2,16 +2,21 @@
 	import emptyBox from '$lib/images/empty-white-box-svgrepo-com.svg';
 	import downloadIcon from '$lib/images/download-svgrepo-com.svg';
 	import Bin from '$lib/images/bin-half-svgrepo-com.svg';
+	import folderIcon from '$lib/images/Folder.svg';
+	import fileIcon from '$lib/images/File.svg';
 	import { ToastGenerator } from '$lib/toast.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import mime from 'mime';
 	import { base64ToBlobAndURL } from '$lib/utils';
 	import PreviewModal from '$lib/components/PreviewModal.svelte';
+	import CreateFolderModal from '$lib/components/CreateFolderModal.svelte';
 	import { capitalise } from '$lib/utils';
 	import { scale } from 'svelte/transition';
 	import { sidebarState } from '$lib/storage.svelte';
 	import { debounce } from '$lib/utils.js';
 	import type { previewFileType } from '$lib/types';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 
 	let { data } = $props();
 
@@ -22,6 +27,7 @@
 	let lastCheckedID: number | null = $state(null);
 	let currentPage: number = $state(1);
 	let files = $state(data.files);
+	let folders = $state(data.folders);
 	let totalFiles: number | undefined = $state(data.totalFiles);
 	let pageSize: number | undefined = $state(data.pageSize);
 	let noOfPages: number | undefined = $derived.by(() => {
@@ -35,9 +41,11 @@
 	let pageSizeSelect: HTMLSelectElement | undefined = $state();
 	let sidebarElement: HTMLInputElement | undefined = $state();
 	let previewModal: HTMLDialogElement | undefined = $state();
+	let createFolderModal: HTMLDialogElement | undefined = $state();
 	let typeSelect: string | null = $state(null);
 	let startDate: string | null = $state(null);
 	let endDate: string | null = $state(null);
+	let currentParentId = $derived(page.url.searchParams.get('folderId') ?? null);
 
 	$effect.pre(() => {
 		if (pageSizeSelect && data.pageSize) {
@@ -51,6 +59,14 @@
 	});
 
 	$effect(() => {
+		// Ensure copies are up to date if the load function is called again
+		files = data.files;
+		folders = data.folders;
+		totalFiles = data.totalFiles;
+		pageSize = data.pageSize;
+	});
+
+	$effect(() => {
 		if (!sidebarElement) return;
 
 		if (sidebarState.open) {
@@ -59,6 +75,14 @@
 			sidebarElement.checked = false;
 		}
 	});
+
+	async function navigateUp() {
+		toastGen.addToast(
+			'Need parent folder info to navigate up properly. Going to root.',
+			'alert-info'
+		); // Placeholder
+		await goto('/home'); // Or goto('?') to just remove search params
+	}
 
 	async function fetchData(page: number = 1) {
 		try {
@@ -307,7 +331,7 @@
 	/>
 	<div class="drawer-content flex max-w-full flex-col">
 		<!-- Page content here -->
-		{#if (files ?? []).length > 0 && data.pageSize}
+		{#if ((files ?? []).length > 0 || (folders ?? []).length > 0) && data.pageSize}
 			<div class="flex w-full justify-center">
 				<div class="w-full overflow-x-auto">
 					<table class="table w-full">
@@ -315,20 +339,48 @@
 							<tr>
 								<th></th>
 								<th></th>
-								<th>File Name</th>
+								<th class="w-14 min-w-14"></th>
+								<th>Name</th>
 								<th>Type</th>
 								<th>Uploaded Date</th>
 								<th>File Size</th>
 							</tr>
 						</thead>
 						<tbody>
+							{#each folders ?? [] as folder, i (folder.name)}
+								<tr
+									class="hover:bg-base-200 cursor-pointer select-none"
+									onclick={() => {
+										goto(`?folderId=${folder.id}`);
+									}}
+								>
+									<td>{data.pageSize * (currentPage - 1) + i + 1}</td>
+									<td>
+										<label>
+											<input type="checkbox" class="checkbox" />
+										</label></td
+									>
+									<td class="w-6 text-center align-middle">
+										<!-- Added w-6 for consistent column width -->
+										<img
+											src={folderIcon}
+											alt="Folder"
+											class="inline-block h-5 w-5 align-middle opacity-70"
+										/>
+									</td>
+									<td>{folder.name}</td>
+									<td>Folder</td>
+									<td></td>
+									<td></td>
+								</tr>
+							{/each}
 							{#each files ?? [] as file, i (file.filename)}
 								<tr
 									class="hover:bg-base-200 cursor-pointer select-none"
 									onclick={() => submitFileForm(file.filename)}
 								>
-									<th>{data.pageSize * (currentPage - 1) + i + 1}</th>
-									<th>
+									<td>{data.pageSize * (currentPage - 1) + i + 1}</td>
+									<td>
 										<label>
 											<input
 												type="checkbox"
@@ -343,8 +395,18 @@
 														(event.target as HTMLInputElement).checked
 													)}
 											/>
-										</label></th
+										</label></td
 									>
+									<!-- Icon -->
+									<td class="w-6 text-center align-middle">
+										<!-- Added w-6 for consistent column width -->
+										<img
+											src={fileIcon}
+											alt="File"
+											class="inline-block h-5 w-5 align-middle opacity-70"
+											width="100px"
+										/>
+									</td>
 									<td>{file.filename}</td>
 									<td>{capitalise(mime.getType(file.filename)?.split('/')[0] ?? 'unknown')}</td>
 									<td>{new Date(file.uploadedAt).toLocaleDateString()}</td>
@@ -497,9 +559,26 @@
 					</div>
 				</fieldset>
 			</li>
+			<li class="mt-4">
+				<button
+					class="btn btn-primary"
+					onclick={() => {
+						createFolderModal?.showModal();
+					}}>Create New Folder</button
+				>
+			</li>
 		</ul>
 	</div>
 </div>
+
+{#if currentParentId}
+	<div class="my-4 ml-4">
+		<button class="btn btn-outline btn-primary" onclick={navigateUp}>
+			<!-- Add an "up arrow" icon here later -->
+			Go Up
+		</button>
+	</div>
+{/if}
 
 {#if showFloatingButtons}
 	<div class="fixed bottom-5 right-5 z-50" in:scale out:scale>
@@ -513,6 +592,8 @@
 {/if}
 
 <PreviewModal {previewFile} bind:previewModalRef={previewModal} />
+
+<CreateFolderModal bind:createFolderModalRef={createFolderModal} parentId={currentParentId} />
 
 <style>
 	select option:disabled {

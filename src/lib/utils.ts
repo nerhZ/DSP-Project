@@ -38,3 +38,10 @@ export function debounce(func: (...args: any[]) => Promise<void>, wait: number) 
 		}, wait);
 	};
 }
+
+export function sanitizePathSegment(name: string): string {
+	return name
+		.trim()
+		.replace(/\s+/g, '_')
+		.replace(/[^a-zA-Z0-9.\-_]/g, '');
+}
