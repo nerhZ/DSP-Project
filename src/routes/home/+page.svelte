@@ -12,7 +12,7 @@
 	import CreateFolderModal from '$lib/components/CreateFolderModal.svelte';
 	import { capitalise } from '$lib/utils';
 	import { scale } from 'svelte/transition';
-	import { sidebarState } from '$lib/storage.svelte';
+	import { sidebarState, parentFolder } from '$lib/storage.svelte';
 	import { debounce } from '$lib/utils.js';
 	import type { previewFileType } from '$lib/types';
 	import { goto } from '$app/navigation';
@@ -46,6 +46,10 @@
 	let startDate: string | null = $state(null);
 	let endDate: string | null = $state(null);
 	let currentParentId = $derived(page.url.searchParams.get('folderId') ?? null);
+
+	$effect(() => {
+		parentFolder.id = page.url.searchParams.get('folderId') ?? null;
+	});
 
 	$effect.pre(() => {
 		if (pageSizeSelect && data.pageSize) {

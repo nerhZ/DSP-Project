@@ -214,7 +214,7 @@ export const actions: Actions = {
 
 		const formData = await event.request.formData();
 		const files = formData.getAll('file') as File[];
-		const folderId = event.url.searchParams.get('folderId') || null;
+		const folderId = formData.get('parentId') as string | null;
 
 		if (!files || files.length === 0) {
 			return fail(400, { message: 'No file uploaded' });
@@ -284,9 +284,37 @@ export const actions: Actions = {
 
 			// Sanitize file name
 			let sanitizedFileName = path.basename(file.name).replace(/[^a-zA-Z0-9.\-_]/g, '_');
+			const baseUserPath = path.join('/mnt', 'AppStorage', currentUser);
+			let targetFolderDbUri = '';
+			let uploadDir = baseUserPath;
+			let fileDbUri = '';
 
 			let filenameType = path.extname(sanitizedFileName);
 			let filenameBase = path.basename(sanitizedFileName, filenameType);
+
+			if (folderId) {
+				try {
+					const parentFolderResult = await db
+						.select({ uri: table.folder.URI })
+						.from(table.folder)
+						.where(and(eq(table.folder.id, folderId), eq(table.folder.userId, currentUser)))
+						.limit(1);
+
+					if (parentFolderResult.length === 0) {
+						// Folder not found or user doesn't own it
+						return fail(404, { message: 'Target folder not found or access denied.' });
+					}
+					targetFolderDbUri = parentFolderResult[0].uri;
+					uploadDir = path.join(baseUserPath, targetFolderDbUri);
+					fileDbUri = path.join(currentUser, targetFolderDbUri, sanitizedFileName);
+				} catch (dbError) {
+					console.error('Error fetching target folder URI:', dbError);
+					return fail(500, { message: 'Server error determining upload location.' });
+				}
+			} else {
+				// If no folderId, upload to root directory
+				fileDbUri = path.join(currentUser, sanitizedFileName);
+			}
 
 			// Check if file name is already in use
 			const existingFile = await db
@@ -307,12 +335,6 @@ export const actions: Actions = {
 				sanitizedFileName = `${filenameBase}-${existingFile[0].count}${filenameType}`;
 			}
 
-			const uploadDir = path.join('/mnt', 'AppStorage', currentUser);
-			const filePath = path.join(uploadDir, sanitizedFileName);
-
-			const arrayBuffer = await file.arrayBuffer();
-			const buffer = Buffer.from(arrayBuffer);
-
 			// Ensure the upload directory exists
 			try {
 				await fs.promises.mkdir(uploadDir, { recursive: true });
@@ -320,6 +342,10 @@ export const actions: Actions = {
 				console.error('Failed to create directory:', err);
 				return fail(500, { message: 'Failed to create directory' });
 			}
+
+			const filePath = path.join(uploadDir, sanitizedFileName);
+			const arrayBuffer = await file.arrayBuffer();
+			const buffer = Buffer.from(arrayBuffer);
 
 			// Write the file to disk
 			try {
@@ -331,10 +357,6 @@ export const actions: Actions = {
 
 				await fs.promises.writeFile(filePath, buffer);
 
-				const fileUri = folderId
-					? path.join(currentUser, folderId, sanitizedFileName)
-					: path.join(currentUser, sanitizedFileName);
-
 				insertValues.push({
 					userId: currentUser,
 					filename: sanitizedFileName,
@@ -342,7 +364,7 @@ export const actions: Actions = {
 					mimetype: mimetype,
 					uploadedAt: new Date(),
 					fileSize: file.size,
-					URI: fileUri,
+					URI: fileDbUri,
 					folderId: folderId ? folderId : null
 				});
 			} catch (err) {

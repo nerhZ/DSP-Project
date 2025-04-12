@@ -3,6 +3,7 @@
 	import { ToastGenerator } from '$lib/toast.svelte';
 	import uploadImage from '$lib/images/upload-svgrepo-com.svg';
 	import { invalidateAll } from '$app/navigation';
+	import { parentFolder } from '$lib/storage.svelte';
 
 	let toastGen = ToastGenerator();
 	let { uploadModal = $bindable() } = $props();
@@ -69,6 +70,9 @@
 				};
 			}}
 		>
+			{#if parentFolder.id}
+				<input type="hidden" name="parentId" value={parentFolder.id} />
+			{/if}
 			<div class="flex flex-col items-center">
 				<input
 					type="file"
