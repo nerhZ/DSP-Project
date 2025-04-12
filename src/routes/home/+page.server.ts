@@ -108,6 +108,14 @@ export const actions: Actions = {
 		}
 
 		const trimmedFolderName = folderName.trim();
+
+		const allowedCharsRegex = /^[a-zA-Z0-9]+$/; // Only letters and numbers
+		if (!allowedCharsRegex.test(trimmedFolderName)) {
+			return fail(400, {
+				message: 'Folder name can only contain letters (a-z, A-Z) and numbers (0-9).'
+			});
+		}
+
 		const sanitizedFolderName = sanitizePathSegment(trimmedFolderName); // Sanitize for path use
 
 		if (!sanitizedFolderName) {
