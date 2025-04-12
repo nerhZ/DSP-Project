@@ -64,8 +64,7 @@ export const user_file = pgTable('user_file', {
 	uploadedAt: timestamp('uploaded_at', { withTimezone: true, mode: 'date' }).notNull(),
 	fileSize: integer('file_size').notNull(),
 	URI: text('uri').notNull(),
-	folderId: uuid('folder_id').references(() => folder.id, { onDelete: 'set null' }),
-	isFolder: boolean('is_folder').default(false).notNull()
+	folderId: uuid('folder_id').references(() => folder.id, { onDelete: 'set null' })
 });
 
 export const userFileRelations = relations(user_file, ({ one }) => ({
