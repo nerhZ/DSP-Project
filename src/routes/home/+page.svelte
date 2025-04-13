@@ -94,6 +94,11 @@
 		}
 	}
 
+	async function navigateRoot() {
+		toastGen.addToast('Successfully returned to base folder.', 'alert-success');
+		await goto('/home');
+	}
+
 	async function fetchData(page: number = 1) {
 		try {
 			currentPage = page;
@@ -364,6 +369,7 @@
 									class="hover:bg-base-200 cursor-pointer select-none"
 									onclick={() => {
 										goto(`?folderId=${folder.id}`);
+										checkedFiles = [];
 									}}
 								>
 									<td>{data.pageSize * (currentPage - 1) + i + 1}</td>
@@ -437,7 +443,7 @@
 					</table>
 				</div>
 			</div>
-			<div class="join mt-3 justify-center">
+			<div class="join fixed bottom-5 left-5 right-5 z-40 justify-center">
 				{#if noOfPages && noOfPages <= 3}
 					{#each Array(noOfPages ?? 1) as _, i}
 						<button
@@ -584,11 +590,15 @@
 </div>
 
 {#if currentParentId}
-	<div class="my-4 ml-4">
-		<button class="btn btn-outline btn-primary" onclick={navigateUp}>
-			<!-- Add an "up arrow" icon here later -->
-			Go Up
-		</button>
+	<div class="fixed bottom-5 left-5 z-50 row-auto grid">
+		{#if data.currentFolder?.parentId}
+			<button class="btn btn-outline btn-primary mb-2" in:scale out:scale onclick={navigateUp}>
+				Go Up a Folder Level
+			</button>
+		{/if}
+		<button class="btn btn-outline btn-primary" in:scale out:scale onclick={navigateRoot}>
+			Return to Base Folder</button
+		>
 	</div>
 {/if}
 

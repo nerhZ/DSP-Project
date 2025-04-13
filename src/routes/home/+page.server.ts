@@ -173,7 +173,9 @@ export const actions: Actions = {
 				}
 				parentUri = parentFolderResult[0].uri;
 				newFolderUri = path.join(parentUri, sanitizedFolderName);
-				newFolderPath = path.join(baseUserPath, newFolderUri);
+				newFolderPath = path.join(baseUserPath, sanitizedFolderName);
+			} else {
+				newFolderUri = path.join(currentUser, sanitizedFolderName);
 			}
 
 			const existingDbFolder = await db
@@ -206,6 +208,14 @@ export const actions: Actions = {
 					console.error('Filesystem access check error:', accessError);
 					return fail(500, { message: 'Server error checking folder path.' });
 				}
+			}
+
+			// Ensure the upload directory exists
+			try {
+				await fs.promises.mkdir(baseUserPath, { recursive: true });
+			} catch (err) {
+				console.error('Failed to create directory:', err);
+				return fail(500, { message: 'Failed to create directory' });
 			}
 
 			try {
