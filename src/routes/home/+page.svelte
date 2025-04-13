@@ -28,11 +28,11 @@
 	let currentPage: number = $state(1);
 	let files = $state(data.files);
 	let folders = $state(data.folders);
-	let totalFiles: number | undefined = $state(data.totalFiles);
+	let totalItems: number | undefined = $state(data.totalItems);
 	let pageSize: number | undefined = $state(data.pageSize);
 	let noOfPages: number | undefined = $derived.by(() => {
-		if (totalFiles && pageSize) {
-			return Math.ceil(totalFiles / pageSize);
+		if (totalItems && pageSize) {
+			return Math.ceil(totalItems / pageSize);
 		}
 	});
 	let searchQuery: string | null = $state(null);
@@ -66,8 +66,11 @@
 		// Ensure copies are up to date if the load function is called again
 		files = data.files;
 		folders = data.folders;
-		totalFiles = data.totalFiles;
+		totalItems = data.totalItems;
 		pageSize = data.pageSize;
+		// Reset to page 1 if the parent folder changes
+		currentPage = 1;
+		checkedFiles = []; // Clear selections on data reload
 	});
 
 	$effect(() => {
@@ -81,17 +84,20 @@
 	});
 
 	async function navigateUp() {
-		toastGen.addToast(
-			'Need parent folder info to navigate up properly. Going to root.',
-			'alert-info'
-		); // Placeholder
-		await goto('/home'); // Or goto('?') to just remove search params
+		const parentFolderId = data.currentFolder?.parentId; // Get parentId from loaded data
+		if (parentFolderId) {
+			await goto(`?folderId=${parentFolderId}`);
+			toastGen.addToast('Successfully returned to previous folder.', 'alert-success');
+		} else {
+			toastGen.addToast('Successfully returned to base folder.', 'alert-success');
+			await goto('/home');
+		}
 	}
 
 	async function fetchData(page: number = 1) {
 		try {
 			currentPage = page;
-			const response = await fetch('/api/loadFiles', {
+			const response = await fetch('/api/loadItems', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -102,22 +108,24 @@
 					pageSize: pageSize,
 					fileType: typeSelect,
 					startDate,
-					endDate
+					endDate,
+					parentId: currentParentId
 				})
 			});
 			const result = await response.json();
 
 			if (response.ok) {
 				files = result.body.files;
-				totalFiles = result.body.totalCount;
-				if (!totalFiles) {
+				folders = result.body.folders;
+				totalItems = result.body.totalItems;
+				if (!totalItems) {
 					toastGen.addToast('No files found...', 'alert-error');
 					return;
 				}
 				// Reset checked files & hide floating buttons
 				checkedFiles = [];
 			} else {
-				toastGen.addToast(result.body.message, 'alert-error');
+				toastGen.addToast(result.body.message || 'Failed to load items.', 'alert-error');
 			}
 		} catch (error) {
 			console.error('Error fetching page:', error);
@@ -383,7 +391,7 @@
 									class="hover:bg-base-200 cursor-pointer select-none"
 									onclick={() => submitFileForm(file.filename)}
 								>
-									<td>{data.pageSize * (currentPage - 1) + i + 1}</td>
+									<td>{(pageSize ?? 0) * (currentPage - 1) + (folders?.length ?? 0) + i + 1}</td>
 									<td>
 										<label>
 											<input

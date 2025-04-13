@@ -5,8 +5,10 @@ import path from 'node:path';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import * as table from '$lib/server/db/schema';
-import { count, eq, and, like, isNull } from 'drizzle-orm';
+import { count, eq, and, like, isNull, asc } from 'drizzle-orm';
 import { sanitizePathSegment } from '$lib/utils';
+
+type UserFileType = typeof table.user_file.$inferSelect;
 
 export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 	const session = event.locals.session;
@@ -15,48 +17,72 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 		return fail(401, { message: 'Not authenticated - please try login again.' });
 	}
 
-	// Get the folder ID from the URL
+	// Get pagination and folder context
 	const parentId = event.url.searchParams.get('folderId') || null;
-
 	let pageSize = event.cookies.get('pageSize');
 	let pageSizeInt: number;
 
-	if (pageSize) {
+	if (pageSize && !isNaN(parseInt(pageSize))) {
+		// Added NaN check
 		pageSizeInt = parseInt(pageSize);
 	} else {
-		pageSizeInt = 15;
+		pageSizeInt = 15; // Default page size
 	}
 
+	// Filter conditions based on whether valid parentId is provided
+	const parentFilter = parentId
+		? eq(table.folder.parentFolderId, parentId)
+		: isNull(table.folder.parentFolderId);
+
+	const fileParentFilter = parentId
+		? eq(table.user_file.folderId, parentId)
+		: isNull(table.user_file.folderId);
+
+	// clause for user and parent folder
+	const folderWhereClause = and(eq(table.folder.userId, session.userId), parentFilter);
+	const fileWhereClause = and(eq(table.user_file.userId, session.userId), fileParentFilter);
+
+	// Order folders by name, then files by name
+	const folderOrderBy = [asc(table.folder.name)];
+	const fileOrderBy = [asc(table.user_file.filename)];
+
 	try {
-		// Filter conditions based on whether valid parentId is provided - for the folder table
-		const parentFilter = parentId
-			? eq(table.folder.parentFolderId, parentId)
-			: isNull(table.folder.parentFolderId);
+		const noOfFoldersResult = await db
+			.select({ count: count() })
+			.from(table.folder)
+			.where(folderWhereClause);
+		const totalFolders = noOfFoldersResult[0]?.count ?? 0;
 
-		// Filter condition based on whether valid parentId is provided - for the user_file table
-		const fileParentFilter = parentId
-			? eq(table.user_file.folderId, parentId)
-			: isNull(table.user_file.folderId);
+		const noOfFilesResult = await db
+			.select({ count: count() }) // Use consistent alias 'count'
+			.from(table.user_file)
+			.where(fileWhereClause);
+		const totalFiles = noOfFilesResult[0]?.count ?? 0;
 
-		// Fetch Folders for the current level
+		const totalItems = totalFolders + totalFiles;
+
+		// Fetch up to pageSizeInt folders, respecting the defined order
 		const folders = await db
 			.select()
 			.from(table.folder)
-			.where(and(eq(table.folder.userId, session.userId), parentFilter));
-
-		// Fetch Files count for the current level
-		const noOfFilesResult = await db
-			.select({ files: count() })
-			.from(table.user_file)
-			.where(and(eq(table.user_file.userId, session.userId), fileParentFilter));
-		const noOfFilesDestructured = noOfFilesResult[0]?.files ?? 0;
-
-		// Fetch Files for the current level (paginated)
-		const files = await db
-			.select()
-			.from(table.user_file)
-			.where(and(eq(table.user_file.userId, session.userId), fileParentFilter))
+			.where(folderWhereClause)
+			.orderBy(...folderOrderBy)
 			.limit(pageSizeInt);
+
+		const fetchedFoldersCount = folders.length;
+
+		let files: UserFileType[] = []; // Initialize files array
+		const remainingSlots = pageSizeInt - fetchedFoldersCount;
+
+		if (remainingSlots > 0) {
+			// Fetch files to fill the remaining slots, respecting the defined order
+			files = await db
+				.select()
+				.from(table.user_file)
+				.where(fileWhereClause)
+				.orderBy(...fileOrderBy) // Apply ordering
+				.limit(remainingSlots); // Limit to remaining slots
+		}
 
 		const fileTypes = await db
 			.selectDistinct({ mimetype: table.user_file.mimetype })
@@ -72,21 +98,24 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 					parentId: table.folder.parentFolderId
 				})
 				.from(table.folder)
-				.where(and(eq(table.folder.id, parentId), eq(table.folder.userId, session.userId)));
+				.where(and(eq(table.folder.id, parentId), eq(table.folder.userId, session.userId)))
+				.limit(1); // Ensure only one result
 			currentFolder = folderResult[0] || null;
 		}
 
 		return {
-			folders,
-			files,
+			folders, // Folders fetched for page 1 (max pageSizeInt)
+			files, // Files fetched for page 1 (fills remaining slots)
 			pageSize: pageSizeInt,
-			totalFiles: noOfFilesDestructured,
+			totalItems: totalItems, // Total count for pagination controls on frontend
 			fileTypes,
 			currentParentId: parentId,
 			currentFolder: currentFolder
 		};
 	} catch (err) {
-		fail(500, { message: 'Failed to read from database!' });
+		console.error('Database error in load function:', err); // Log the specific error
+		// Return fail object, don't just call fail() which might not return correctly
+		return fail(500, { message: 'Failed to load data from database!' });
 	}
 };
 
