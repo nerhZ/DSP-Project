@@ -388,7 +388,7 @@
 									</td>
 									<td>{folder.name}</td>
 									<td>Folder</td>
-									<td></td>
+									<td>{new Date(folder.createdAt).toLocaleDateString()}</td>
 									<td></td>
 								</tr>
 							{/each}
@@ -542,6 +542,9 @@
 					>
 						{#if data.fileTypes}
 							<option value={null}>Any</option>
+							{#if data.folders}
+								<option value="Folder">Folder</option>
+							{/if}
 							{#each data.fileTypes as type}
 								<option value={type.mimetype}
 									>{type.mimetype.charAt(0).toUpperCase() + type.mimetype.slice(1)}</option
