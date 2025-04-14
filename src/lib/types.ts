@@ -26,3 +26,9 @@ export interface previewFileType {
 	dataBlob: Blob;
 	dataURL: string;
 }
+
+export type CheckedItem = {
+	id: number | string; // Use the database ID for uniqueness
+	name: string; // Keep the name for potential display or confirmation messages
+	type: 'file' | 'folder';
+};

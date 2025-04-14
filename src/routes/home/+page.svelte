@@ -14,7 +14,7 @@
 	import { scale } from 'svelte/transition';
 	import { sidebarState, parentFolder } from '$lib/storage.svelte';
 	import { debounce } from '$lib/utils.js';
-	import type { previewFileType } from '$lib/types';
+	import type { previewFileType, CheckedItem } from '$lib/types';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -22,12 +22,27 @@
 
 	let toastGen = ToastGenerator();
 	let previewFile: previewFileType | null = $state(null);
-	let checkedFiles: string[] = $state([]);
-	let showFloatingButtons = $derived(checkedFiles.length > 0);
-	let lastCheckedID: number | null = $state(null);
-	let currentPage: number = $state(1);
+	let checkedItems: CheckedItem[] = $state([]);
+	let showFloatingButtons = $derived(checkedItems.length > 0);
+	let lastCheckedIndex: number | null = $state(null);
 	let files = $state(data.files);
 	let folders = $state(data.folders);
+	let combinedListForIndexing = $derived.by(() => {
+		const folderItems = (folders ?? []).map((f, i) => ({
+			id: f.id,
+			name: f.name,
+			type: 'folder' as const,
+			index: i
+		}));
+		const fileItems = (files ?? []).map((f, i) => ({
+			id: f.id,
+			name: f.filename,
+			type: 'file' as const,
+			index: (folders?.length ?? 0) + i
+		}));
+		return [...folderItems, ...fileItems];
+	});
+	let currentPage: number = $state(1);
 	let totalItems: number | undefined = $state(data.totalItems);
 	let pageSize: number | undefined = $state(data.pageSize);
 	let noOfPages: number | undefined = $derived.by(() => {
@@ -70,7 +85,7 @@
 		pageSize = data.pageSize;
 		// Reset to page 1 if the parent folder changes
 		currentPage = 1;
-		checkedFiles = []; // Clear selections on data reload
+		checkedItems = []; // Clear selections on data reload
 	});
 
 	$effect(() => {
@@ -128,7 +143,7 @@
 					return;
 				}
 				// Reset checked files & hide floating buttons
-				checkedFiles = [];
+				checkedItems = [];
 			} else {
 				toastGen.addToast(result.body.message || 'Failed to load items.', 'alert-error');
 			}
@@ -169,14 +184,14 @@
 		}
 	}
 
-	async function submitGroupDownload(files: string[]) {
+	async function submitGroupDownload(items: CheckedItem[]) {
 		try {
 			const response = await fetch('/api/downloadFiles', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ files })
+				body: JSON.stringify({ items })
 			});
 
 			const result = await response.json();
@@ -205,24 +220,24 @@
 		}
 	}
 
-	async function submitGroupDeletion(files: string[]) {
+	async function submitGroupDeletion(items: CheckedItem[]) {
 		if (!confirm(`Are you sure you want to delete all selected files? (CANNOT BE UNDONE!)`)) {
 			return;
 		}
 		try {
-			const response = await fetch('/api/deleteFiles', {
+			const response = await fetch('/api/deleteItems', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ files })
+				body: JSON.stringify({ items: checkedItems })
 			});
 
 			const result = await response.json();
 
 			if (response.ok) {
 				toastGen.addToast(result.body.message, 'alert-success');
-				checkedFiles = [];
+				checkedItems = [];
 				invalidateAll();
 			} else {
 				toastGen.addToast(result.body.message, 'alert-error');
@@ -253,55 +268,74 @@
 	}
 
 	function toggleCheckbox(
-		filename: string,
-		fileId: number,
-		index: number,
+		item: { id: number | string; name: string; type: 'file' | 'folder' },
+		index: number, // The index in the combined list
 		event: MouseEvent,
 		isChecked: boolean
 	) {
 		const shiftKey = event.shiftKey;
-		const ctrlKey = event.ctrlKey || event.metaKey;
+		const ctrlKey = event.ctrlKey || event.metaKey; // metaKey for Mac Command key
 
-		if (!files) {
-			toastGen.addToast('Failed to toggle checkbox. Please try again.', 'alert-error');
-			return;
-		}
+		const currentItem: CheckedItem = { id: item.id, name: item.name, type: item.type };
 
-		if (shiftKey && lastCheckedID !== null) {
-			const startIndex = Math.min(
-				index,
-				files.findIndex((file) => file.id == lastCheckedID)
-			);
-			const endIndex = Math.max(
-				index,
-				files.findIndex((file) => file.id == lastCheckedID)
-			);
+		if (shiftKey && lastCheckedIndex !== null && lastCheckedIndex !== index) {
+			const startIndex = Math.min(index, lastCheckedIndex);
+			const endIndex = Math.max(index, lastCheckedIndex);
 
-			const selectedFiles = files.slice(startIndex, endIndex + 1).map((f) => f.filename);
+			// Select all items in the range from the combined list
+			const rangeItems = combinedListForIndexing
+				.slice(startIndex, endIndex + 1)
+				.map((listItem) => ({ id: listItem.id, name: listItem.name, type: listItem.type }));
 
-			checkedFiles = checkedFiles.filter((f) => !selectedFiles.includes(f));
-
-			selectedFiles.forEach((f) => {
-				if (!checkedFiles.includes(f)) checkedFiles.push(f);
-			});
-		} else if (ctrlKey) {
-			if (checkedFiles.includes(filename)) {
-				checkedFiles = checkedFiles.filter((f) => f !== filename);
+			// If Ctrl is also held, add the range to the existing selection (avoiding duplicates)
+			if (ctrlKey) {
+				const existingIds = new Set(checkedItems.map((ci) => `${ci.type}-${ci.id}`));
+				const itemsToAdd = rangeItems.filter((ri) => !existingIds.has(`${ri.type}-${ri.id}`));
+				checkedItems = [...checkedItems, ...itemsToAdd];
 			} else {
-				checkedFiles.push(filename);
+				// Otherwise, set the selection to the range
+				checkedItems = rangeItems;
+			}
+		} else if (ctrlKey) {
+			const existingIndex = checkedItems.findIndex(
+				(ci) => ci.id === currentItem.id && ci.type === currentItem.type
+			);
+			if (existingIndex > -1) {
+				// Remove if already checked
+				checkedItems = checkedItems.filter((_, i) => i !== existingIndex);
+			} else {
+				// Add if not checked
+				checkedItems.push(currentItem);
+				// Ensure reactivity when pushing
+				checkedItems = checkedItems;
 			}
 		} else {
-			// Single click
+			// Single click (no modifiers)
 			if (isChecked) {
-				checkedFiles = [filename];
+				checkedItems = [currentItem];
 			} else {
-				checkedFiles = [];
+				// If clicking the only selected item to uncheck it
+				if (
+					checkedItems.length === 1 &&
+					checkedItems[0].id === currentItem.id &&
+					checkedItems[0].type === currentItem.type
+				) {
+					checkedItems = [];
+				} else {
+					// This case might occur if clicking an unchecked box when others are checked (without Ctrl/Shift)
+					// Standard behavior is to select only the clicked one.
+					checkedItems = [currentItem];
+				}
 			}
 		}
 
-		lastCheckedID = fileId;
+		// Update last checked index *only* if not using Ctrl+Shift
+		// (to allow extending selection from the original anchor point)
+		if (!(ctrlKey && shiftKey)) {
+			lastCheckedIndex = index;
+		}
 
-		// Stop preview modal when clicking checkbox
+		// Stop propagation to prevent row click (preview/navigate)
 		event.stopPropagation();
 	}
 
@@ -325,7 +359,6 @@
 			if (response.ok) {
 				toastGen.addToast(result.body.message, 'alert-success');
 				fetchData(1);
-				console.log('Page size set to:', noOfPages);
 			} else {
 				toastGen.addToast(result.body.message, 'alert-error');
 			}
@@ -369,13 +402,26 @@
 									class="hover:bg-base-200 cursor-pointer select-none"
 									onclick={() => {
 										goto(`?folderId=${folder.id}`);
-										checkedFiles = [];
+										checkedItems = [];
 									}}
 								>
 									<td>{data.pageSize * (currentPage - 1) + i + 1}</td>
 									<td>
 										<label>
-											<input type="checkbox" class="checkbox" />
+											<input
+												type="checkbox"
+												class="checkbox"
+												checked={checkedItems.some(
+													(ci) => ci.id === folder.id && ci.type === 'folder'
+												)}
+												onclick={(event) =>
+													toggleCheckbox(
+														{ id: folder.id, name: folder.name, type: 'folder' },
+														i, // Index within the combined list
+														event,
+														(event.target as HTMLInputElement).checked
+													)}
+											/>
 										</label></td
 									>
 									<td class="w-6 text-center align-middle">
@@ -403,12 +449,11 @@
 											<input
 												type="checkbox"
 												class="checkbox"
-												checked={checkedFiles.includes(file.filename)}
+												checked={checkedItems.some((ci) => ci.id === file.id && ci.type === 'file')}
 												onclick={(event) =>
 													toggleCheckbox(
-														file.filename,
-														file.id,
-														i,
+														{ id: file.id, name: file.filename, type: 'file' },
+														(folders?.length ?? 0) + i, // Index within the combined list
 														event,
 														(event.target as HTMLInputElement).checked
 													)}
@@ -607,10 +652,10 @@
 
 {#if showFloatingButtons}
 	<div class="fixed bottom-5 right-5 z-50" in:scale out:scale>
-		<button type="button" aria-label="Delete" onclick={() => submitGroupDownload(checkedFiles)}
+		<button type="button" aria-label="Delete" onclick={() => submitGroupDownload(checkedItems)}
 			><img src={downloadIcon} class="cursor-pointer" width="100px" alt="Download icon" />
 		</button>
-		<button type="button" aria-label="Delete" onclick={() => submitGroupDeletion(checkedFiles)}
+		<button type="button" aria-label="Delete" onclick={() => submitGroupDeletion(checkedItems)}
 			><img src={Bin} class="cursor-pointer" width="100px" alt="Bin icon" />
 		</button>
 	</div>

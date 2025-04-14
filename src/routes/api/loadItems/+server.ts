@@ -28,7 +28,7 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 	try {
 		body = await event.request.json();
 	} catch (e) {
-		console.error('Error parsing request body:', e); // Added logging
+		console.error('Error parsing request body:', e);
 		return json({ message: 'Invalid request body' }, { status: 400 });
 	}
 
@@ -141,7 +141,6 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 			// Calculate offset relative to the start of the file list
 			// If folders were fetched/included, adjust offset; otherwise, use page offset directly relative to files.
 			const fileOffset = shouldIncludeFolders ? Math.max(0, offset - totalFolders) : offset;
-			console.log('Fetching Files:', { filesNeeded, fileOffset }); // Log file fetch params
 
 			files = await db
 				.select()

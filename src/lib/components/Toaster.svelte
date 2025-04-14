@@ -8,7 +8,7 @@
 
 <div class="toast toast-center toast-top lg:toast-bottom lg:toast-start pointer-events-none z-50">
 	{#each toastGen.toasts as toast: Toast (toast.id)}
-		<div class="alert pointer-events-none {toast.type}" out:fly={{ y: +50, duration: 250 }}>
+		<div class="alert pointer-events-none {toast.type}" out:fly={{ y: -50, duration: 250 }}>
 			<span>{toast.message}</span>
 		</div>
 	{/each}

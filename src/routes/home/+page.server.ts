@@ -153,17 +153,19 @@ export const actions: Actions = {
 			});
 		}
 
-		let parentUri = '';
-		let newFolderUri = sanitizedFolderName;
-		const baseUserPath = path.join('/mnt', 'AppStorage', currentUser);
-		let newFolderPath = path.join(baseUserPath, newFolderUri);
+		// Define the absolute root for storage
+		const storageRoot = path.join('/mnt', 'AppStorage');
+		// Define the user's base path (useful for ensuring it exists)
+		const baseUserPath = path.join(storageRoot, currentUser);
+
+		let newFolderUri = ''; // Will store the path relative to storageRoot (e.g., "userId/folder" or "userId/parent/folder")
+		let newFolderPath = ''; // Will store the absolute filesystem path
 
 		try {
-			// Fetch parent URI (Path) if creating a subfolder
-			console.log('Current parentId', parentId);
 			if (parentId) {
+				// --- Subfolder Logic ---
 				const parentFolderResult = await db
-					.select({ uri: table.folder.URI })
+					.select({ uri: table.folder.URI }) // Fetch the parent's full URI (which should now include userId)
 					.from(table.folder)
 					.where(and(eq(table.folder.id, parentId), eq(table.folder.userId, currentUser)))
 					.limit(1);
@@ -171,11 +173,21 @@ export const actions: Actions = {
 				if (parentFolderResult.length === 0) {
 					return fail(404, { message: 'Parent folder not found.' });
 				}
-				parentUri = parentFolderResult[0].uri;
-				newFolderUri = path.join(parentUri, sanitizedFolderName);
-				newFolderPath = path.join(baseUserPath, sanitizedFolderName);
+				const parentUri = parentFolderResult[0].uri; // e.g., "userId/parent" or "userId/grandparent/parent"
+
+				// DB URI: Join parent's full URI with the new folder name
+				newFolderUri = path.join(parentUri, sanitizedFolderName); // e.g., "userId/parent/newFolder"
+
+				// Filesystem Path: Absolute path (Storage Root + Full DB URI)
+				newFolderPath = path.join(storageRoot, newFolderUri); // e.g., "/mnt/AppStorage/userId/parent/newFolder"
 			} else {
-				newFolderUri = path.join(currentUser, sanitizedFolderName);
+				// --- Root Folder Logic ---
+
+				// DB URI: User ID + Folder Name
+				newFolderUri = path.join(currentUser, sanitizedFolderName); // e.g., "userId/newFolder"
+
+				// Filesystem Path: Absolute path (Storage Root + Full DB URI)
+				newFolderPath = path.join(storageRoot, newFolderUri); // e.g., "/mnt/AppStorage/userId/newFolder"
 			}
 
 			const existingDbFolder = await db
@@ -331,10 +343,14 @@ export const actions: Actions = {
 
 			// Sanitize file name
 			let sanitizedFileName = path.basename(file.name).replace(/[^a-zA-Z0-9.\-_]/g, '_');
-			const baseUserPath = path.join('/mnt', 'AppStorage', currentUser);
-			let targetFolderDbUri = '';
-			let uploadDir = baseUserPath;
-			let fileDbUri = '';
+			// Define the absolute storage root
+			const storageRoot = path.join('/mnt', 'AppStorage');
+			// User's base path (relative to storage root)
+			const userRelativePath = currentUser; // Just the user ID
+
+			let targetFolderDbUri = ''; // Relative path within user's storage (e.g., "folder" or "parent/folder")
+			let uploadDir = ''; // Absolute filesystem path for upload
+			let fileDbUri = ''; // Full relative DB URI (e.g., "userId/folder/file.txt")
 
 			let filenameType = path.extname(sanitizedFileName);
 			let filenameBase = path.basename(sanitizedFileName, filenameType);
@@ -348,19 +364,25 @@ export const actions: Actions = {
 						.limit(1);
 
 					if (parentFolderResult.length === 0) {
-						// Folder not found or user doesn't own it
 						return fail(404, { message: 'Target folder not found or access denied.' });
 					}
 					targetFolderDbUri = parentFolderResult[0].uri;
-					uploadDir = path.join(baseUserPath, targetFolderDbUri);
-					fileDbUri = path.join(currentUser, targetFolderDbUri, sanitizedFileName);
+
+					// Filesystem Path: Absolute root + full relative DB URI of the folder
+					uploadDir = path.join(storageRoot, targetFolderDbUri);
+
+					// DB URI for the file: Folder's full DB URI + sanitized file name
+					fileDbUri = path.join(targetFolderDbUri, sanitizedFileName);
 				} catch (dbError) {
 					console.error('Error fetching target folder URI:', dbError);
 					return fail(500, { message: 'Server error determining upload location.' });
 				}
 			} else {
-				// If no folderId, upload to root directory
-				fileDbUri = path.join(currentUser, sanitizedFileName);
+				// If no folderId, upload to user's root directory
+				uploadDir = path.join(storageRoot, userRelativePath);
+
+				// DB URI for the file: User ID + sanitized file name
+				fileDbUri = path.join(userRelativePath, sanitizedFileName);
 			}
 
 			// Check if file name is already in use

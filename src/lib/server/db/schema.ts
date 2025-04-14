@@ -57,14 +57,14 @@ export const user_file = pgTable('user_file', {
 	id: serial('id').primaryKey(),
 	userId: text('user_id')
 		.notNull()
-		.references(() => user.id),
+		.references(() => user.id, { onDelete: 'cascade' }),
 	filename: text('filename').notNull(),
 	extension: text('extension').notNull(),
 	mimetype: text('mimetype').notNull(),
 	uploadedAt: timestamp('uploaded_at', { withTimezone: true, mode: 'date' }).notNull(),
 	fileSize: integer('file_size').notNull(),
 	URI: text('uri').notNull(),
-	folderId: uuid('folder_id').references(() => folder.id, { onDelete: 'set null' })
+	folderId: uuid('folder_id').references(() => folder.id, { onDelete: 'cascade' })
 });
 
 export const userFileRelations = relations(user_file, ({ one }) => ({
