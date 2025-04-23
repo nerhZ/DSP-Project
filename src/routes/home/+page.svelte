@@ -153,14 +153,14 @@
 		}
 	}
 
-	async function submitFileForm(filename: string) {
+	async function submitFileForm(fileID: number) {
 		try {
 			const response = await fetch('/api/downloadFile', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ file: filename })
+				body: JSON.stringify({ file: fileID })
 			});
 
 			const result = await response.json();
@@ -441,7 +441,7 @@
 							{#each files ?? [] as file, i (file.filename)}
 								<tr
 									class="hover:bg-base-200 cursor-pointer select-none"
-									onclick={() => submitFileForm(file.filename)}
+									onclick={() => submitFileForm(file.id)}
 								>
 									<td>{(pageSize ?? 0) * (currentPage - 1) + (folders?.length ?? 0) + i + 1}</td>
 									<td>
