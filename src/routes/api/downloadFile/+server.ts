@@ -57,7 +57,7 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 		// Return the file content and original filename
 		return json({
 			body: {
-				data: { fileContent: fileContentBase64, fileName: originalFileName }
+				data: { fileContent: fileContentBase64, fileName: originalFileName, fileId }
 			}
 		});
 	} catch (err: any) {

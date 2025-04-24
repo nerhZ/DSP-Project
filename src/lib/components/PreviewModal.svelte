@@ -70,7 +70,6 @@
 						case 'success':
 							toastGen.addToast('Successfully deleted file!', 'alert-success');
 							previewModalRef.close();
-							await goto('/');
 							break;
 						case 'error':
 							toastGen.addToast(
@@ -94,7 +93,7 @@
 				</a>
 				<button class="ml-2 text-red-500 hover:text-red-700">
 					<img src={Bin} class="mt-2" alt="Delete" width="35px" />
-					<input type="hidden" name="file" value={previewFile?.name} />
+					<input type="hidden" name="file" value={previewFile?.id} />
 				</button>
 			</div>
 		</form>

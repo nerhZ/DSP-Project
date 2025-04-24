@@ -169,6 +169,7 @@
 				const data = result.body.data;
 				const { blob, url } = base64ToBlobAndURL(data.fileContent, data.fileName);
 				const file = {
+					id: data.fileId,
 					name: data.fileName,
 					dataBase64: data.fileContent,
 					dataBlob: blob,

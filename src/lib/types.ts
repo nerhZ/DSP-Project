@@ -21,6 +21,7 @@ export interface HomeProps {
 }
 
 export interface previewFileType {
+	id: number;
 	name: string;
 	dataBase64: string;
 	dataBlob: Blob;

@@ -454,26 +454,62 @@ export const actions: Actions = {
 		}
 
 		const formData = await event.request.formData();
-		const fileName = formData.get('file');
+		const fileIdValue = formData.get('file');
 
-		if (!fileName || typeof fileName !== 'string') {
-			return fail(400, { message: 'No file specified for deletion, please try again' });
+		// Validate fileId
+		if (!fileIdValue || typeof fileIdValue !== 'string') {
+			return fail(400, { message: 'No file ID specified for deletion.' });
 		}
 
-		const filePath = path.join('/mnt', 'AppStorage', currentUser, fileName);
+		const fileId = parseInt(fileIdValue, 10);
+		if (isNaN(fileId)) {
+			return fail(400, { message: 'Invalid file ID format.' });
+		}
+
+		const storageRoot = path.join('/mnt', 'AppStorage');
+		let fileDbUri: string | null = null;
 
 		try {
-			await db
-				.delete(table.user_file)
-				.where(
-					and(eq(table.user_file.userId, currentUser), eq(table.user_file.filename, fileName))
-				);
+			const fileResult = await db
+				.select({
+					uri: table.user_file.URI
+				})
+				.from(table.user_file)
+				.where(and(eq(table.user_file.id, fileId), eq(table.user_file.userId, currentUser)))
+				.limit(1);
 
-			await fs.promises.unlink(filePath);
+			if (fileResult.length === 0) {
+				return fail(404, { message: 'File not found or access denied.' });
+			}
+
+			fileDbUri = fileResult[0].uri;
+			const absoluteFilePath = path.join(storageRoot, fileDbUri);
+
+			const deleteDbResult = await db
+				.delete(table.user_file)
+				.where(and(eq(table.user_file.id, fileId), eq(table.user_file.userId, currentUser)));
+
+			try {
+				await fsp.unlink(absoluteFilePath);
+				console.log(`Deleted file from filesystem: ${absoluteFilePath}`);
+			} catch (unlinkError: any) {
+				if (unlinkError.code === 'ENOENT') {
+					console.warn(
+						`File ${absoluteFilePath} not found on filesystem during delete, but DB record was removed.`
+					);
+				} else {
+					// Other filesystem error
+					console.error(`Failed to delete file from filesystem: ${absoluteFilePath}`, unlinkError);
+					return fail(500, {
+						message: 'File record deleted, but failed to remove file from storage.'
+					});
+				}
+			}
 
 			return { success: true, message: 'File deleted!' };
 		} catch (err) {
-			console.error(err);
+			console.error(`Error during deletion process for file ID ${fileId}:`, err);
+			// Check if it's a known error type if needed, otherwise generic error
 			return fail(500, { message: 'Failed to delete file! Please try again or refresh.' });
 		}
 	}
