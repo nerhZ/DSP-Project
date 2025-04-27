@@ -68,9 +68,6 @@ export const POST: RequestHandler = async (event: RequestEvent) => {
 				archive.abort();
 				reject(new Error(`Failed to create archive: ${err.message}`));
 			});
-			archive.on('warning', (warn) => {
-				console.warn('Archiver warning:', warn);
-			});
 		});
 
 		archive.pipe(output);
