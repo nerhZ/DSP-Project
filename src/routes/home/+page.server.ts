@@ -350,7 +350,6 @@ export const actions: Actions = {
 
 			let targetFolderDbUri = ''; // Relative path within user's storage (e.g., "folder" or "parent/folder")
 			let uploadDir = ''; // Absolute filesystem path for upload
-			let fileDbUri = ''; // Full relative DB URI (e.g., "userId/folder/file.txt")
 
 			let filenameType = path.extname(sanitizedFileName);
 			let filenameBase = path.basename(sanitizedFileName, filenameType);
@@ -370,9 +369,6 @@ export const actions: Actions = {
 
 					// Filesystem Path: Absolute root + full relative DB URI of the folder
 					uploadDir = path.join(storageRoot, targetFolderDbUri);
-
-					// DB URI for the file: Folder's full DB URI + sanitized file name
-					fileDbUri = path.join(targetFolderDbUri, sanitizedFileName);
 				} catch (dbError) {
 					console.error('Error fetching target folder URI:', dbError);
 					return fail(500, { message: 'Server error determining upload location.' });
@@ -382,7 +378,7 @@ export const actions: Actions = {
 				uploadDir = path.join(storageRoot, userRelativePath);
 
 				// DB URI for the file: User ID + sanitized file name
-				fileDbUri = path.join(userRelativePath, sanitizedFileName);
+				targetFolderDbUri = userRelativePath;
 			}
 
 			// Check if file name is already in use
@@ -392,10 +388,7 @@ export const actions: Actions = {
 				.where(
 					and(
 						eq(table.user_file.userId, currentUser),
-						like(
-							table.user_file.filename,
-							`${path.basename(sanitizedFileName, path.extname(sanitizedFileName))}%`
-						),
+						like(table.user_file.filename, `${filenameBase}%${filenameType}`),
 						folderId ? eq(table.user_file.folderId, folderId) : isNull(table.user_file.folderId)
 					)
 				);
@@ -403,6 +396,8 @@ export const actions: Actions = {
 			if (existingFile[0].count > 0) {
 				sanitizedFileName = `${filenameBase}-${existingFile[0].count}${filenameType}`;
 			}
+
+			const fileDbUri = path.join(targetFolderDbUri, sanitizedFileName);
 
 			// Ensure the upload directory exists
 			try {
