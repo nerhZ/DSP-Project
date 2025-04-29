@@ -265,7 +265,7 @@ export const actions: Actions = {
 	},
 
 	upload: async (event) => {
-		const currentUser = event.locals.user?.id;
+		const currentUser = event.locals.session?.userId;
 
 		if (!currentUser) {
 			return fail(401, { message: 'Not authenticated' });
@@ -293,8 +293,8 @@ export const actions: Actions = {
 			}
 
 			// Get file type
-			const mimetype = file.type.split('/')[0];
-			const extension = file.type.split('/')[1];
+			const fullMimeType = file.type.split(';')[0].trim(); // Get full MIME type
+			const extension = path.extname(file.name).substring(1).toLowerCase();
 
 			// Validate file type
 			const allowedTypes = [
@@ -337,7 +337,7 @@ export const actions: Actions = {
 				'video/x-flv',
 				'video/ogg'
 			];
-			if (!file.type || !allowedTypes.includes(file.type)) {
+			if (!file.type || !allowedTypes.includes(fullMimeType)) {
 				return fail(400, { message: 'Invalid file type' });
 			}
 
@@ -425,7 +425,7 @@ export const actions: Actions = {
 					userId: currentUser,
 					filename: sanitizedFileName,
 					extension: extension,
-					mimetype: mimetype,
+					mimetype: fullMimeType,
 					uploadedAt: new Date(),
 					fileSize: file.size,
 					URI: fileDbUri,
