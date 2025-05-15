@@ -163,7 +163,7 @@ export const actions: Actions = {
 
 		try {
 			if (parentId) {
-				// --- Subfolder Logic ---
+				// Subfolder Logic
 				const parentFolderResult = await db
 					.select({ uri: table.folder.URI }) // Fetch the parent's full URI (which should now include userId)
 					.from(table.folder)
@@ -181,7 +181,7 @@ export const actions: Actions = {
 				// Filesystem Path: Absolute path (Storage Root + Full DB URI)
 				newFolderPath = path.join(storageRoot, newFolderUri); // e.g., "/mnt/AppStorage/userId/parent/newFolder"
 			} else {
-				// --- Root Folder Logic ---
+				// Root Folder Logic
 
 				// DB URI: User ID + Folder Name
 				newFolderUri = path.join(currentUser, sanitizedFolderName); // e.g., "userId/newFolder"
@@ -296,49 +296,31 @@ export const actions: Actions = {
 			const fullMimeType = file.type.split(';')[0].trim(); // Get full MIME type
 			const extension = path.extname(file.name).substring(1).toLowerCase();
 
-			// Validate file type
-			const allowedTypes = [
-				'application/zip',
-				'application/x-rar-compressed',
-				'application/x-tar',
-				'application/gzip',
-				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-				'application/msword',
-				'application/pdf',
-				'audio/mpeg',
-				'audio/wav',
-				'audio/ogg',
-				'audio/opus',
-				'image/jpeg',
-				'image/png',
-				'image/gif',
-				'image/bmp',
-				'image/tiff',
-				'image/svg+xml',
-				'image/webp',
-				'text/css',
-				'text/html',
-				'application/x-httpd-php',
-				'text/x-c',
-				'text/x-c++',
-				'text/x-h',
-				'text/x-h++',
-				'application/javascript',
-				'text/x-java-source',
-				'text/x-python',
-				'text/plain',
-				'video/webm',
-				'video/mp4',
-				'video/3gpp',
-				'video/quicktime',
-				'video/x-msvideo',
-				'video/mpeg',
-				'video/x-ms-wmv',
-				'video/x-flv',
-				'video/ogg'
+			const disallowedTypes = [
+				'application/x-msdownload', // .exe, .dll
+				'application/x-msi', // .msi
+				'application/bat', // .bat
+				'application/x-bat', // .bat
+				'application/cmd', // .cmd
+				'application/x-msdos-program', // .com
+				'application/x-sh', // .sh
+				'application/x-csh', // .csh
+				'application/java-archive', // .jar
+				'application/php', // .php
+				'application/x-httpd-php', // .php (if server might execute it)
+				'text/asp', // .asp, .aspx
+				// Consider disallowing if not explicitly needed and handled with extreme care:
+				// 'text/javascript',
+				// 'application/javascript',
+				// 'application/ecmascript',
+				// 'text/html',
+				// 'image/svg+xml', // Can contain scripts; needs sanitization if rendered directly
+				'application/vnd.ms-word.document.macroEnabled.12', // .docm
+				'application/vnd.ms-excel.sheet.macroEnabled.12', // .xlsm
+				'application/vnd.ms-powerpoint.presentation.macroEnabled.12' // .pptm
 			];
-			if (!file.type || !allowedTypes.includes(fullMimeType)) {
-				return fail(400, { message: 'Invalid file type' });
+			if (file.type && disallowedTypes.includes(fullMimeType)) {
+				return fail(400, { message: `File type '${fullMimeType}' is not allowed.` });
 			}
 
 			// Sanitize file name

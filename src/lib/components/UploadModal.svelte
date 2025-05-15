@@ -2,7 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { ToastGenerator } from '$lib/toast.svelte';
 	import uploadImage from '$lib/images/upload-svgrepo-com.svg';
-	import { invalidateAll } from '$app/navigation';
+	// import { invalidateAll } from '$app/navigation';
 	import { parentFolder } from '$lib/storage.svelte';
 
 	let toastGen = ToastGenerator();
@@ -59,7 +59,6 @@
 							uploadModal.close();
 							uploadedImage = null;
 							selectedFiles = [];
-							invalidateAll();
 							break;
 						case 'error':
 							toastGen.addToast('Error uploading file, please try again.', 'alert-error');
@@ -71,7 +70,7 @@
 							);
 					}
 					// Don't need to re-enable the button since the button's state relies on uploadedFile.
-					await update({ invalidateAll: true });
+					await update();
 				};
 			}}
 		>

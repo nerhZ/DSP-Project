@@ -9,6 +9,8 @@
 
 	let toastGen = ToastGenerator();
 	let textContent: string | null = $state(null);
+	let videoElement: HTMLVideoElement | undefined = $state();
+	let audioElement: HTMLAudioElement | undefined = $state();
 
 	$effect(() => {
 		async function loadTextContent() {
@@ -32,6 +34,10 @@
 	bind:this={previewModalRef}
 	class="modal min-w-full"
 	class:pdf-modal={previewFile && mime.getType(previewFile.name) == 'application/pdf'}
+	onclose={() => {
+		if (videoElement && !videoElement.paused) videoElement.pause();
+		if (audioElement && !audioElement.paused) audioElement.pause();
+	}}
 >
 	<div class="modal-box max-h-[90vh] w-full overflow-hidden md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
 		<form method="dialog">
@@ -46,7 +52,7 @@
 						<img src={previewFile?.dataURL} alt={previewFile.name} class="max-h-[75vh]" />
 					{:else if mime.getType(previewFile.name)?.startsWith('video/')}
 						<!-- svelte-ignore -->
-						<video controls class="h-auto w-full">
+						<video bind:this={videoElement} controls class="h-auto w-full">
 							<source
 								src={previewFile?.dataURL}
 								type={mime.getType(previewFile.name) || 'video/mp4'}
@@ -54,7 +60,7 @@
 							<track kind="captions" src="" srclang="en" default />
 						</video>
 					{:else if mime.getType(previewFile.name)?.startsWith('audio/')}
-						<audio controls>
+						<audio bind:this={audioElement} controls>
 							<source
 								src={previewFile?.dataURL}
 								type={mime.getType(previewFile.name) || 'audio/mpeg'}
