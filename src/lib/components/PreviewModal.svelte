@@ -3,15 +3,31 @@
 	import { enhance } from '$app/forms';
 	import downloadIcon from '$lib/images/download-svgrepo-com.svg';
 	import Bin from '$lib/images/bin-half-svgrepo-com.svg';
-	import { goto } from '$app/navigation';
 	import mime from 'mime';
 
 	let { previewModalRef = $bindable(), previewFile } = $props();
 
 	let toastGen = ToastGenerator();
+	let textContent: string | null = $state(null);
+
+	$effect(() => {
+		async function loadTextContent() {
+			if (previewFile && mime.getType(previewFile.name)?.startsWith('text/')) {
+				try {
+					const response = await fetch(previewFile.dataURL);
+					textContent = await response.text();
+				} catch (error) {
+					console.error('Error fetching text content:', error);
+					textContent = 'Error loading preview.';
+				}
+			} else {
+				textContent = null;
+			}
+		}
+		loadTextContent();
+	});
 </script>
 
-<!-- Open the modal using ID.showModal() method -->
 <dialog
 	bind:this={previewModalRef}
 	class="modal min-w-full"
@@ -51,6 +67,10 @@
 							class="w-full"
 							style="height: calc(100vh - 125px)"
 						/>
+					{:else if mime.getType(previewFile.name)?.startsWith('text/')}
+						<pre
+							class="max-h-[75vh] w-full overflow-auto whitespace-pre-wrap p-4 text-left">{textContent ??
+								'Loading...'}</pre>
 					{:else}
 						<p>No preview available for this file type.</p>
 					{/if}

@@ -64,6 +64,11 @@
 						case 'error':
 							toastGen.addToast('Error uploading file, please try again.', 'alert-error');
 							break;
+						case 'failure':
+							toastGen.addToast(
+								'Failed to upload file. Likely due to a disallowed file type - or the file exceeds the file limit. Please try again.',
+								'alert-error'
+							);
 					}
 					// Don't need to re-enable the button since the button's state relies on uploadedFile.
 					await update({ invalidateAll: true });

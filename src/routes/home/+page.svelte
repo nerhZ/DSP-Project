@@ -257,15 +257,8 @@
 			toastGen.addToast('File type not supported.', 'alert-error');
 			return;
 		}
-		if (
-			mimedFileType.startsWith('image/') ||
-			mimedFileType.startsWith('video/') ||
-			mimedFileType.startsWith('audio/') ||
-			mimedFileType == 'application/pdf'
-		) {
-			previewFile = file;
-			previewModal?.showModal();
-		}
+		previewFile = file;
+		previewModal?.showModal();
 	}
 
 	function toggleCheckbox(

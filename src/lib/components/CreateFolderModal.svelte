@@ -39,7 +39,11 @@
 							toastGen.addToast('Error creating folder, please try again.', 'alert-error');
 							break;
 						case 'failure':
-							toastGen.addToast('Failed to create folder, please try again.', 'alert-error');
+							toastGen.addToast(
+								'Failed to create folder, please try again. Likely due to not using standard characters (a-z, A-Z, 0-9) or a duplicate name.',
+								'alert-error',
+								7500
+							);
 							break;
 					}
 				};
