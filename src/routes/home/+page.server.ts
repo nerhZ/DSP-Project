@@ -87,7 +87,8 @@ export const load: PageServerLoad = async (event: PageServerLoadEvent) => {
 		const fileTypes = await db
 			.selectDistinct({ mimetype: table.user_file.mimetype })
 			.from(table.user_file)
-			.where(eq(table.user_file.userId, session.userId));
+			.where(eq(table.user_file.userId, session.userId))
+			.orderBy(asc(table.user_file.mimetype));
 
 		let currentFolder = null;
 		if (parentId) {
