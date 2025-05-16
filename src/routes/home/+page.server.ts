@@ -306,15 +306,7 @@ export const actions: Actions = {
 				'application/x-sh', // .sh
 				'application/x-csh', // .csh
 				'application/java-archive', // .jar
-				'application/php', // .php
-				'application/x-httpd-php', // .php (if server might execute it)
 				'text/asp', // .asp, .aspx
-				// Consider disallowing if not explicitly needed and handled with extreme care:
-				// 'text/javascript',
-				// 'application/javascript',
-				// 'application/ecmascript',
-				// 'text/html',
-				// 'image/svg+xml', // Can contain scripts; needs sanitization if rendered directly
 				'application/vnd.ms-word.document.macroEnabled.12', // .docm
 				'application/vnd.ms-excel.sheet.macroEnabled.12', // .xlsm
 				'application/vnd.ms-powerpoint.presentation.macroEnabled.12' // .pptm
