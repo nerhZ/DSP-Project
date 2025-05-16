@@ -602,8 +602,9 @@
 								type="date"
 								bind:value={startDate}
 								onchange={() => {
-									if (startDate && endDate && new Date(startDate) > new Date(endDate))
-										endDate = null;
+									if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+										endDate = startDate; // Auto-adjust endDate
+									}
 									fetchData();
 								}}
 							/>
