@@ -636,12 +636,10 @@
 	<!-- Apply out:scale to the parent div -->
 	<div class="fixed bottom-5 left-5 z-50 row-auto grid" out:scale>
 		{#if data.currentFolder?.parentId}
-			<!-- in:scale remains for individual appearance, out:scale is handled by parent -->
 			<button class="btn btn-outline btn-primary mb-2" in:scale out:scale onclick={navigateUp}>
 				Go Up a Folder Level
 			</button>
 		{/if}
-		<!-- in:scale remains for individual appearance, out:scale is handled by parent -->
 		<button class="btn btn-outline btn-primary" in:scale onclick={navigateRoot}>
 			Return to Base Folder</button
 		>
